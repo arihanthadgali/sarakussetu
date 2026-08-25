@@ -50,28 +50,28 @@ public class OtpAuthenticationService {
     }
 
     @Transactional
-    public VerificationResult verifyOtp(String phoneNumber, String otp) {
+    public VerificationOutcome verifyOtp(String phoneNumber, String otp) {
         Optional<OtpVerification> verification = otpVerificationRepository
                 .findTopByPhoneNumberAndVerifiedFalseAndExpiresAtAfterOrderByCreatedAtDesc(phoneNumber, Instant.now());
 
         if (verification.isEmpty()) {
-            return VerificationResult.OTP_UNAVAILABLE;
+            return VerificationOutcome.of(VerificationResult.OTP_UNAVAILABLE);
         }
 
         OtpVerification activeOtp = verification.get();
         if (activeOtp.getAttemptCount() >= MAX_ATTEMPTS) {
-            return VerificationResult.ATTEMPTS_EXHAUSTED;
+            return VerificationOutcome.of(VerificationResult.ATTEMPTS_EXHAUSTED);
         }
 
         if (!otpPasswordEncoder.matches(otp, activeOtp.getOtpHash())) {
             activeOtp.recordFailedAttempt();
             return activeOtp.getAttemptCount() >= MAX_ATTEMPTS
-                    ? VerificationResult.ATTEMPTS_EXHAUSTED
-                    : VerificationResult.INVALID_OTP;
+                    ? VerificationOutcome.of(VerificationResult.ATTEMPTS_EXHAUSTED)
+                    : VerificationOutcome.of(VerificationResult.INVALID_OTP);
         }
 
         activeOtp.markVerified();
-        return VerificationResult.VERIFIED;
+        return new VerificationOutcome(VerificationResult.VERIFIED, activeOtp.getCustomer().getId());
     }
 
     public enum VerificationResult {
@@ -79,5 +79,11 @@ public class OtpAuthenticationService {
         INVALID_OTP,
         OTP_UNAVAILABLE,
         ATTEMPTS_EXHAUSTED
+    }
+
+    public record VerificationOutcome(VerificationResult result, Long customerId) {
+        static VerificationOutcome of(VerificationResult result) {
+            return new VerificationOutcome(result, null);
+        }
     }
 }

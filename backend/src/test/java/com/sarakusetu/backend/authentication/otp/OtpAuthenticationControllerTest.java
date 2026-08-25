@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,14 +21,24 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:otp-authentication;MODE=MySQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.datasource.driver-class-name=org.h2.Driver"
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.flyway.url=jdbc:h2:mem:otp-authentication;MODE=MySQL;DB_CLOSE_DELAY=-1",
+        "spring.flyway.user=sa",
+        "spring.flyway.password=",
+        "app.jwt.secret=c2FyYWt1c2V0dS10ZXN0LWp3dC1zZWNyZXQta2V5MzI="
 })
 @AutoConfigureMockMvc
 class OtpAuthenticationControllerTest {
@@ -42,6 +53,9 @@ class OtpAuthenticationControllerTest {
 
     @Autowired
     private OtpVerificationRepository otpVerificationRepository;
+
+    @Autowired
+    private JwtEncoder jwtEncoder;
 
     @MockitoBean
     private OtpDelivery otpDelivery;
@@ -88,7 +102,8 @@ class OtpAuthenticationControllerTest {
 
         verifyOtp(PHONE_NUMBER, otp)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.verified").value(true));
+                .andExpect(jsonPath("$.verified").value(true))
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
 
         assertThat(otpVerificationRepository.findAll().get(0).isVerified()).isTrue();
     }
@@ -151,6 +166,52 @@ class OtpAuthenticationControllerTest {
         assertThat(verifications.stream().filter(verification -> verification.isVerified()).count()).isEqualTo(1);
     }
 
+    @Test
+    void validAccessTokenCanAccessAuthenticatedCustomer() throws Exception {
+        String otp = requestOtp(PHONE_NUMBER);
+        String accessToken = verifyOtpAndGetAccessToken(PHONE_NUMBER, otp);
+
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phoneNumber").value(PHONE_NUMBER))
+                .andExpect(jsonPath("$.id").isNumber());
+    }
+
+    @Test
+    void rejectsMissingAccessTokenForProtectedEndpoint() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsInvalidAccessTokenForProtectedEndpoint() throws Exception {
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsExpiredAccessTokenForProtectedEndpoint() throws Exception {
+        Instant now = Instant.now();
+        String expiredToken = jwtEncoder.encode(JwtEncoderParameters.from(
+                        JwsHeader.with(MacAlgorithm.HS256).build(),
+                        JwtClaimsSet.builder()
+                                .subject("1")
+                                .issuedAt(now.minusSeconds(120))
+                                .expiresAt(now.minusSeconds(60))
+                                .build()))
+                .getTokenValue();
+
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + expiredToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void keepsHealthEndpointPublic() throws Exception {
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
     private String requestOtp(String phoneNumber) throws Exception {
         mockMvc.perform(post("/api/auth/otp/request")
                         .contentType("application/json")
@@ -169,6 +230,14 @@ class OtpAuthenticationControllerTest {
         return mockMvc.perform(post("/api/auth/otp/verify")
                 .contentType("application/json")
                 .content("{\"phoneNumber\":\"" + phoneNumber + "\",\"otp\":\"" + otp + "\"}"));
+    }
+
+    private String verifyOtpAndGetAccessToken(String phoneNumber, String otp) throws Exception {
+        MvcResult result = verifyOtp(phoneNumber, otp)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andReturn();
+        return com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.accessToken");
     }
 
     private String aDifferentOtp(String otp) {
