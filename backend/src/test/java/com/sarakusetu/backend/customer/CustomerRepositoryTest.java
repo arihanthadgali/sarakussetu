@@ -9,8 +9,16 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@DataJpaTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:customer-repository;MODE=MySQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.flyway.url=jdbc:h2:mem:customer-repository;MODE=MySQL;DB_CLOSE_DELAY=-1",
+        "spring.flyway.user=sa",
+        "spring.flyway.password="
+})
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class CustomerRepositoryTest {
 
     @Autowired

@@ -1,5 +1,6 @@
 package com.sarakusetu.backend.authentication.otp;
 
+import com.sarakusetu.backend.authentication.jwt.JwtTokenService;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,9 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class OtpAuthenticationController {
 
     private final OtpAuthenticationService otpAuthenticationService;
+    private final JwtTokenService jwtTokenService;
 
-    public OtpAuthenticationController(OtpAuthenticationService otpAuthenticationService) {
+    public OtpAuthenticationController(
+            OtpAuthenticationService otpAuthenticationService, JwtTokenService jwtTokenService) {
         this.otpAuthenticationService = otpAuthenticationService;
+        this.jwtTokenService = jwtTokenService;
     }
 
     @PostMapping("/request")
@@ -35,8 +39,11 @@ public class OtpAuthenticationController {
             return ResponseEntity.badRequest().body(new ErrorResponse("A phone number and six-digit OTP are required."));
         }
 
-        return switch (otpAuthenticationService.verifyOtp(request.phoneNumber(), request.otp())) {
-            case VERIFIED -> ResponseEntity.ok(new OtpVerificationResponse(true, "OTP verified."));
+        OtpAuthenticationService.VerificationOutcome outcome =
+                otpAuthenticationService.verifyOtp(request.phoneNumber(), request.otp());
+        return switch (outcome.result()) {
+            case VERIFIED -> ResponseEntity.ok(new OtpVerificationResponse(
+                    true, "OTP verified.", jwtTokenService.createAccessToken(outcome.customerId())));
             case INVALID_OTP -> ResponseEntity.badRequest().body(new ErrorResponse("Invalid OTP."));
             case OTP_UNAVAILABLE -> ResponseEntity.badRequest().body(new ErrorResponse("OTP is expired or unavailable."));
             case ATTEMPTS_EXHAUSTED -> ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -57,7 +64,7 @@ public class OtpAuthenticationController {
     public record OtpRequestResponse(String message, Instant expiresAt) {
     }
 
-    public record OtpVerificationResponse(boolean verified, String message) {
+    public record OtpVerificationResponse(boolean verified, String message, String accessToken) {
     }
 
     public record ErrorResponse(String message) {
