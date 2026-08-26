@@ -1,6 +1,8 @@
 import "./App.css";
+import ProductCatalog from "./pages/ProductCatalog";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { SubmitEvent } from "react";
 
 import { apiRequest } from "./api/client";
 import { useAuth } from "./auth/useAuth";
@@ -24,8 +26,9 @@ function App() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showProducts, setShowProducts] = useState(false);
 
-  async function handleRequestOtp(event: FormEvent) {
+  async function handleRequestOtp(event: SubmitEvent) {
     event.preventDefault();
 
     const phone = phoneNumber.replace(/\D/g, "");
@@ -54,7 +57,7 @@ function App() {
     }
   }
 
-  async function handleVerifyOtp(event: FormEvent) {
+  async function handleVerifyOtp(event: SubmitEvent) {
     event.preventDefault();
 
     if (otp.length !== 6) {
@@ -113,6 +116,36 @@ function App() {
   }
 
   if (isAuthenticated) {
+    if (showProducts) {
+      return (
+        <main className="dashboard-page">
+          <header className="site-header">
+            <Brand />
+
+            <div className="header-right">
+              <div className="online-status">
+                <span />
+                Account active
+              </div>
+
+              <button
+                className="header-button"
+                onClick={() => setShowProducts(false)}
+              >
+                ← Back
+              </button>
+
+              <button className="header-button" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <ProductCatalog />
+        </main>
+      );
+    }
+
     return (
       <main className="dashboard-page">
         <header className="site-header">
@@ -169,7 +202,12 @@ function App() {
                 </p>
               </div>
 
-              <button>Browse products <span>→</span></button>
+              <button
+                type="button"
+                onClick={() => setShowProducts(true)}
+              >
+                Browse products <span>→</span>
+              </button>
             </div>
 
             <div className="dashboard-card">
@@ -186,7 +224,9 @@ function App() {
                 </p>
               </div>
 
-              <button>View orders <span>→</span></button>
+              <button type="button">
+                View orders <span>→</span>
+              </button>
             </div>
 
             <div className="dashboard-card">
@@ -204,7 +244,9 @@ function App() {
                 </p>
               </div>
 
-              <button>Open cart <span>→</span></button>
+              <button type="button">
+                Open cart <span>→</span>
+              </button>
             </div>
           </div>
 
