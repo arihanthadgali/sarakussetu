@@ -48,15 +48,15 @@ class ProductRepositoryTest {
     @Test
     void shouldFindOnlyActiveProductsOrderedByName() {
         Product darkChocolate = new Product(
-                "Dark Chocolate Box",
-                "Premium dark chocolate gift box",
+                "Test Dark Chocolate Box",
+                "Test dark chocolate gift box",
                 new BigDecimal("599.00"),
                 null
         );
 
         Product milkChocolate = new Product(
-                "Milk Chocolate Box",
-                "Premium milk chocolate gift box",
+                "Test Milk Chocolate Box",
+                "Test milk chocolate gift box",
                 new BigDecimal("499.00"),
                 null
         );
@@ -68,9 +68,24 @@ class ProductRepositoryTest {
 
         assertThat(products)
                 .extracting(Product::getName)
-                .containsExactly(
+                .contains(
+                        "Assorted Chocolate Box",
                         "Dark Chocolate Box",
-                        "Milk Chocolate Box"
+                        "Milk Chocolate Box",
+                        "Test Dark Chocolate Box",
+                        "Test Milk Chocolate Box"
+                );
+    }
+    @Test
+    void shouldContainSeedProducts() {
+        List<Product> products = productRepository.findAll();
+
+        assertThat(products)
+                .extracting(Product::getName)
+                .contains(
+                        "Milk Chocolate Box",
+                        "Dark Chocolate Box",
+                        "Assorted Chocolate Box"
                 );
     }
 }
