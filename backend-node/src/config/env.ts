@@ -7,6 +7,8 @@ const environmentSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   CORS_ORIGIN: z.string().optional(),
   DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().optional(),
+  JWT_ACCESS_TOKEN_TTL: z.string().default('PT1H'),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

@@ -5,6 +5,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     env: {
       DATABASE_URL: 'mysql://test:test@localhost:3306/sarakusetu_test',
+      JWT_SECRET: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
     },
   },
 });
