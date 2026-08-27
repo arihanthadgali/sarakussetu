@@ -15,6 +15,7 @@ model Customer {
   createdAt        DateTime          @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime          @map("updated_at") @db.Timestamp(6)
   otpVerifications OtpVerification[]
+  cart             Cart?
 
   @@map("customers")
 }
@@ -35,6 +36,32 @@ model OtpVerification {
   @@map("otp_verifications")
 }
 
+model Cart {
+  id         BigInt     @id @default(autoincrement()) @db.BigInt
+  customerId BigInt     @unique(map: "uk_carts_customer_id") @map("customer_id") @db.BigInt
+  createdAt  DateTime   @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime   @map("updated_at") @db.Timestamp(6)
+  customer   Customer   @relation(fields: [customerId], references: [id], map: "fk_carts_customer")
+  items      CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  cartId    BigInt   @map("cart_id") @db.BigInt
+  productId BigInt   @map("product_id") @db.BigInt
+  quantity  Int      @db.Int
+  createdAt DateTime @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @map("updated_at") @db.Timestamp(6)
+  cart      Cart     @relation(fields: [cartId], references: [id], map: "fk_cart_items_cart")
+  product   Product  @relation(fields: [productId], references: [id], map: "fk_cart_items_product")
+
+  @@unique([cartId, productId], map: "uk_cart_items_cart_product")
+  @@index([productId], map: "idx_cart_items_product_id")
+  @@map("cart_items")
+}
+
 model Product {
   id          BigInt   @id @default(autoincrement()) @db.BigInt
   name        String   @db.VarChar(255)
@@ -44,6 +71,7 @@ model Product {
   active      Boolean  @default(true)
   createdAt   DateTime @map("created_at") @db.Timestamp(6)
   updatedAt   DateTime @map("updated_at") @db.Timestamp(6)
+  cartItems   CartItem[]
 
   @@map("products")
 }
