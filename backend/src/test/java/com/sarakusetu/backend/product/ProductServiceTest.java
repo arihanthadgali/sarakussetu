@@ -1,10 +1,13 @@
 package com.sarakusetu.backend.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +29,7 @@ class ProductServiceTest {
         Product product = new Product(
                 "Milk Chocolate Box",
                 "Premium milk chocolate gift box",
-                new java.math.BigDecimal("499.00"),
+                new BigDecimal("499.00"),
                 null
         );
 
@@ -39,5 +42,35 @@ class ProductServiceTest {
 
         verify(productRepository)
                 .findByActiveTrueOrderByNameAsc();
+    }
+
+    @Test
+    void returnsActiveProductById() {
+        Product product = new Product(
+                "Milk Chocolate Box",
+                "Premium milk chocolate gift box",
+                new BigDecimal("499.00"),
+                null
+        );
+
+        when(productRepository.findByIdAndActiveTrue(1L))
+                .thenReturn(Optional.of(product));
+
+        Product result = productService.getActiveProduct(1L);
+
+        assertThat(result).isSameAs(product);
+
+        verify(productRepository)
+                .findByIdAndActiveTrue(1L);
+    }
+
+    @Test
+    void throwsWhenActiveProductDoesNotExist() {
+        when(productRepository.findByIdAndActiveTrue(999L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.getActiveProduct(999L))
+                .isInstanceOf(ProductNotFoundException.class)
+                .hasMessage("Product not found: 999");
     }
 }

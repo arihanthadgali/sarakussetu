@@ -1,13 +1,14 @@
 package com.sarakusetu.backend.authentication.jwt;
 
 import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.jwt")
 public class JwtProperties {
 
     private String secret;
-    private Duration accessTokenTtl = Duration.ofHours(1);
+    private Duration accessTokenTtl;
 
     public String getSecret() {
         return secret;

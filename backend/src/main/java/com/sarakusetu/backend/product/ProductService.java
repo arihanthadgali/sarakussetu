@@ -17,4 +17,8 @@ public class ProductService {
     public List<Product> getActiveProducts() {
         return productRepository.findByActiveTrueOrderByNameAsc();
     }
+    public Product getActiveProduct(Long id) {
+        return productRepository.findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ProductNotFoundException(id));
+    }
 }
