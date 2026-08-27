@@ -26,6 +26,7 @@ const createResponse = (customerId?: bigint) => {
   const response = {
     locals: customerId === undefined ? {} : { customerId },
     json: vi.fn(),
+    send: vi.fn(),
     status: vi.fn(),
   };
   response.status.mockReturnValue(response);
@@ -53,6 +54,7 @@ const createDatabase = (activeProduct: typeof product | null = product) => {
       findUnique: vi.fn().mockResolvedValue(null),
     },
     cartItem: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findFirst: vi.fn().mockResolvedValue(null),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
@@ -93,20 +95,80 @@ const getAddItemHandler = (database: ReturnType<typeof createDatabase>['database
   return addItemHandler.handle;
 };
 
+// const getUpdateItemHandler = (database: ReturnType<typeof createDatabase>['database']) => {
+//   const router = createCartRouter({ database } as never);
+//   const route = router.stack.find((layer) => layer.route?.path === '/items/:cartItemId');
+//   if (route?.route === undefined) {
+//     throw new Error('PATCH /items/:cartItemId route not found.');
+//   }
+
+//   const [authenticationHandler, updateItemHandler] = route.route.stack;
+//   if (authenticationHandler?.handle !== requireAuthentication || updateItemHandler?.handle === undefined) {
+//     throw new Error('PATCH /items/:cartItemId route does not require authentication.');
+//   }
+
+//   return updateItemHandler.handle;
+// };
+
+// const getRemoveItemHandler = (database: ReturnType<typeof createDatabase>['database']) => {
+//   const router = createCartRouter({ database } as never);
+//   const route = router.stack
+//   .filter((layer) => layer.route?.path === '/items/:cartItemId')
+//   .at(-1);
+
+//   if (route?.route === undefined) {
+//     throw new Error('DELETE /items/:cartItemId route not found.');
+//   }
+
+//   const [authenticationHandler, , removeItemHandler] = route.route.stack;
+//   if (authenticationHandler?.handle !== requireAuthentication || removeItemHandler?.handle === undefined) {
+//     throw new Error('DELETE /items/:cartItemId route does not require authentication.');
+//   }
+
+//   return removeItemHandler.handle;
+// };
 const getUpdateItemHandler = (database: ReturnType<typeof createDatabase>['database']) => {
   const router = createCartRouter({ database } as never);
-  const route = router.stack.find((layer) => layer.route?.path === '/items/:cartItemId');
+  const routes = router.stack.filter(
+    (layer) => layer.route?.path === '/items/:cartItemId',
+  );
+  const route = routes[0];
 
   if (route?.route === undefined) {
     throw new Error('PATCH /items/:cartItemId route not found.');
   }
 
   const [authenticationHandler, updateItemHandler] = route.route.stack;
-  if (authenticationHandler?.handle !== requireAuthentication || updateItemHandler?.handle === undefined) {
+  if (
+    authenticationHandler?.handle !== requireAuthentication ||
+    updateItemHandler?.handle === undefined
+  ) {
     throw new Error('PATCH /items/:cartItemId route does not require authentication.');
   }
 
   return updateItemHandler.handle;
+};
+
+const getRemoveItemHandler = (database: ReturnType<typeof createDatabase>['database']) => {
+  const router = createCartRouter({ database } as never);
+  const routes = router.stack.filter(
+    (layer) => layer.route?.path === '/items/:cartItemId',
+  );
+  const route = routes[1];
+
+  if (route?.route === undefined) {
+    throw new Error('DELETE /items/:cartItemId route not found.');
+  }
+
+  const [authenticationHandler, removeItemHandler] = route.route.stack;
+  if (
+    authenticationHandler?.handle !== requireAuthentication ||
+    removeItemHandler?.handle === undefined
+  ) {
+    throw new Error('DELETE /items/:cartItemId route does not require authentication.');
+  }
+
+  return removeItemHandler.handle;
 };
 
 describe('POST /api/cart/items handler', () => {
@@ -506,6 +568,90 @@ describe('PATCH /api/cart/items/:cartItemId handler', () => {
 
     await getUpdateItemHandler(database)(
       { params: { cartItemId: '17' }, body: { quantity: 5 } } as unknown as Request,
+      response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(failure);
+  });
+});
+
+describe('DELETE /api/cart/items/:cartItemId handler', () => {
+  it('rejects requests without authenticated customer context', async () => {
+    const { database } = createDatabase();
+    const response = createResponse();
+
+    await getRemoveItemHandler(database)(
+      { params: { cartItemId: '17' } } as unknown as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.cartItem.deleteMany).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+  });
+
+  it.each(['invalid', '0', '-1'])('rejects invalid cart item ID %s', async (cartItemId) => {
+    const { database } = createDatabase();
+    const response = createResponse(3n);
+
+    await getRemoveItemHandler(database)(
+      { params: { cartItemId } } as unknown as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.cartItem.deleteMany).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({ message: 'A valid cart item ID is required.' });
+  });
+
+  it.each(['missing', 'another customer\'s', 'previously removed'])('does not expose a %s cart item', async () => {
+    const { database } = createDatabase();
+    const response = createResponse(3n);
+
+    await getRemoveItemHandler(database)(
+      { params: { cartItemId: '17' } } as unknown as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.cartItem.deleteMany).toHaveBeenCalledWith({
+      where: { id: 17n, cart: { customerId: 3n } },
+    });
+    expect(response.status).toHaveBeenCalledWith(404);
+    expect(response.json).toHaveBeenCalledWith({ message: 'Cart item not found.' });
+  });
+
+  it('removes only the owned cart item and leaves the cart intact', async () => {
+    const { database } = createDatabase();
+    database.cartItem.deleteMany.mockResolvedValueOnce({ count: 1 });
+    const response = createResponse(3n);
+
+    await getRemoveItemHandler(database)(
+      { params: { cartItemId: '17' } } as unknown as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.cartItem.deleteMany).toHaveBeenCalledWith({
+      where: { id: 17n, cart: { customerId: 3n } },
+    });
+    expect(database.cart.findUnique).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(204);
+    expect(response.send).toHaveBeenCalledWith();
+  });
+
+  it('forwards database errors to the shared error handler', async () => {
+    const { database } = createDatabase();
+    const failure = new Error('database unavailable');
+    database.cartItem.deleteMany.mockRejectedValueOnce(failure);
+    const response = createResponse(3n);
+    const next = vi.fn();
+
+    await getRemoveItemHandler(database)(
+      { params: { cartItemId: '17' } } as unknown as Request,
       response,
       next,
     );

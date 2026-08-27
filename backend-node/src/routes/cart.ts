@@ -258,8 +258,34 @@ export const createCartRouter = ({ database = prisma }: CartRouterDependencies =
     }
   };
 
+  const removeItem: RequestHandler = async (request, response, next) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+    if (customerId === undefined) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const cartItemId = parsePositiveId(request.params.cartItemId);
+    if (cartItemId === undefined) {
+      return response.status(400).json({ message: 'A valid cart item ID is required.' });
+    }
+
+    try {
+      const deletedItem = await database.cartItem.deleteMany({
+        where: { id: cartItemId, cart: { customerId } },
+      });
+      if (deletedItem.count === 0) {
+        return response.status(404).json({ message: 'Cart item not found.' });
+      }
+
+      return response.status(204).send();
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   router.get('/', requireAuthentication, getCart);
   router.post('/items', requireAuthentication, addItem);
   router.patch('/items/:cartItemId', requireAuthentication, updateItemQuantity);
+  router.delete('/items/:cartItemId', requireAuthentication, removeItem);
   return router;
 };
