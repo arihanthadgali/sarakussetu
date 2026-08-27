@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { Router, type RequestHandler } from 'express';
 
 import { prisma } from '../database/prisma.js';
@@ -37,6 +38,64 @@ const isUniqueConstraintError = (error: unknown): boolean =>
 
 export const createCartRouter = ({ database = prisma }: CartRouterDependencies = {}): Router => {
   const router = Router();
+
+  const getCart: RequestHandler = async (_request, response, next) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+    if (customerId === undefined) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const cart = await database.cart.findUnique({
+        where: { customerId },
+        select: {
+          id: true,
+          items: {
+            orderBy: { createdAt: 'asc' },
+            select: {
+              id: true,
+              quantity: true,
+              product: { select: productSelection },
+            },
+          },
+        },
+      });
+
+      if (cart === null) {
+        return response.status(200).json({ id: null, items: [], subtotal: 0, itemCount: 0 });
+      }
+
+      let subtotal = new Decimal(0);
+      let itemCount = 0;
+      const items = cart.items.map((item) => {
+        const lineTotal = item.product.price.mul(item.quantity);
+        subtotal = subtotal.plus(lineTotal);
+        itemCount += item.quantity;
+
+        return {
+          id: item.id.toString(),
+          quantity: item.quantity,
+          product: {
+            id: Number(item.product.id),
+            name: item.product.name,
+            description: item.product.description,
+            price: item.product.price.toNumber(),
+            imageUrl: item.product.imageUrl,
+          },
+          lineTotal: lineTotal.toNumber(),
+        };
+      });
+
+      return response.status(200).json({
+        id: cart.id.toString(),
+        items,
+        subtotal: subtotal.toNumber(),
+        itemCount,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
 
   const addItem: RequestHandler = async (request, response, next) => {
     const customerId = response.locals.customerId as bigint | undefined;
@@ -148,6 +207,7 @@ export const createCartRouter = ({ database = prisma }: CartRouterDependencies =
     }
   };
 
+  router.get('/', requireAuthentication, getCart);
   router.post('/items', requireAuthentication, addItem);
   return router;
 };

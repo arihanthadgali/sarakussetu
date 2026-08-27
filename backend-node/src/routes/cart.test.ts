@@ -14,6 +14,14 @@ const product = {
   imageUrl: 'https://example.com/products/milk-chocolate-box.jpg',
 };
 
+const productSelection = {
+  id: true,
+  name: true,
+  description: true,
+  price: true,
+  imageUrl: true,
+};
+
 const createResponse = (customerId?: bigint) => {
   const response = {
     locals: customerId === undefined ? {} : { customerId },
@@ -41,9 +49,28 @@ const createDatabase = (activeProduct: typeof product | null = product) => {
   };
   const database = {
     $transaction: vi.fn(async (callback: (client: typeof transaction) => unknown) => callback(transaction)),
+    cart: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
   };
 
   return { database, transaction };
+};
+
+const getCartHandler = (database: ReturnType<typeof createDatabase>['database']) => {
+  const router = createCartRouter({ database } as never);
+  const route = router.stack.find((layer) => layer.route?.path === '/');
+
+  if (route?.route === undefined) {
+    throw new Error('GET / route not found.');
+  }
+
+  const [authenticationHandler, getCartRouteHandler] = route.route.stack;
+  if (authenticationHandler?.handle !== requireAuthentication || getCartRouteHandler?.handle === undefined) {
+    throw new Error('GET / route does not require authentication.');
+  }
+
+  return getCartRouteHandler.handle;
 };
 
 const getAddItemHandler = (database: ReturnType<typeof createDatabase>['database']) => {
@@ -225,5 +252,130 @@ describe('POST /api/cart/items handler', () => {
     expect(transaction.cartItem.updateMany).toHaveBeenCalledTimes(2);
     expect(response.status).toHaveBeenCalledWith(201);
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ id: '17', quantity: 4 }));
+  });
+});
+
+describe('GET /api/cart handler', () => {
+  it('rejects requests without authenticated customer context', async () => {
+    const { database } = createDatabase();
+    const response = createResponse();
+
+    await getCartHandler(database)({} as Request, response, vi.fn());
+
+    expect(database.cart.findUnique).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+  });
+
+  it('returns an empty cart without creating one when the customer has no cart', async () => {
+    const { database } = createDatabase();
+    const response = createResponse(3n);
+
+    await getCartHandler(database)({} as Request, response, vi.fn());
+
+    expect(database.cart.findUnique).toHaveBeenCalledWith({
+      where: { customerId: 3n },
+      select: {
+        id: true,
+        items: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            quantity: true,
+            product: { select: productSelection },
+          },
+        },
+      },
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({ id: null, items: [], subtotal: 0, itemCount: 0 });
+  });
+
+  it('returns an existing empty cart', async () => {
+    const { database } = createDatabase();
+    database.cart.findUnique.mockResolvedValueOnce({ id: 9n, items: [] });
+    const response = createResponse(3n);
+
+    await getCartHandler(database)({} as Request, response, vi.fn());
+
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({ id: '9', items: [], subtotal: 0, itemCount: 0 });
+  });
+
+  it('returns a cart item with Decimal-safe line and subtotal totals', async () => {
+    const { database } = createDatabase();
+    database.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [{ id: 17n, quantity: 2, product }],
+    });
+    const response = createResponse(3n);
+
+    await getCartHandler(database)({} as Request, response, vi.fn());
+
+    expect(response.json).toHaveBeenCalledWith({
+      id: '9',
+      items: [{
+        id: '17',
+        quantity: 2,
+        product: {
+          id: 12,
+          name: 'Milk Chocolate Box',
+          description: 'Premium milk chocolate gift box.',
+          price: 499,
+          imageUrl: 'https://example.com/products/milk-chocolate-box.jpg',
+        },
+        lineTotal: 998,
+      }],
+      subtotal: 998,
+      itemCount: 2,
+    });
+  });
+
+  it('returns multiple cart items with current product prices and total quantity', async () => {
+    const { database } = createDatabase();
+    database.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [
+        { id: 17n, quantity: 2, product: { ...product, active: false } },
+        {
+          id: 18n,
+          quantity: 3,
+          product: {
+            id: 13n,
+            name: 'Dark Chocolate Box',
+            description: null,
+            price: new Decimal('599.00'),
+            imageUrl: null,
+            active: true,
+          },
+        },
+      ],
+    });
+    const response = createResponse(3n);
+
+    await getCartHandler(database)({} as Request, response, vi.fn());
+
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({
+      id: '9',
+      items: [
+        expect.objectContaining({ id: '17', quantity: 2, lineTotal: 998 }),
+        expect.objectContaining({ id: '18', quantity: 3, lineTotal: 1797 }),
+      ],
+      subtotal: 2795,
+      itemCount: 5,
+    });
+  });
+
+  it('forwards database errors to the shared error handler', async () => {
+    const { database } = createDatabase();
+    const failure = new Error('database unavailable');
+    database.cart.findUnique.mockRejectedValueOnce(failure);
+    const response = createResponse(3n);
+    const next = vi.fn();
+
+    await getCartHandler(database)({} as Request, response, next);
+
+    expect(next).toHaveBeenCalledWith(failure);
   });
 });
