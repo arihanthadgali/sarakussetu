@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { healthRouter } from './health.js';
+
 export const router = Router();
 
-// Domain routes will be registered incrementally as their Spring contracts are migrated.
+router.use('/api/health', healthRouter);
