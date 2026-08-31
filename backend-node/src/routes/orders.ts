@@ -1,7 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { Router, type Request, type Response, type NextFunction } from "express";
-
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 
 const MAX_INT = 2_147_483_647;
 
@@ -183,8 +187,56 @@ export function createOrdersRouter({
     }
   };
 
-const router = Router();
+  const getOrders = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const orders = await database.order.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          subtotal: true,
+          createdAt: true,
+          items: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              productId: true,
+              productName: true,
+              quantity: true,
+              unitPrice: true,
+              lineTotal: true,
+            },
+          },
+        },
+      });
+
+      response.status(200).json(
+        orders.map((order) => ({
+          ...serializeOrder(order),
+          createdAt: order.createdAt.toISOString(),
+        })),
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const router = Router();
+
   router.post("/", requireAuthentication, createOrder);
+  router.get("/", requireAuthentication, getOrders);
 
   return router;
 }
