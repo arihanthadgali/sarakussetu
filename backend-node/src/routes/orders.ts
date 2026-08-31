@@ -183,8 +183,124 @@ export function createOrdersRouter({
     }
   };
 
-const router = Router();
+  const getOrders = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const orders = await database.order.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          subtotal: true,
+          createdAt: true,
+          items: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              productId: true,
+              productName: true,
+              quantity: true,
+              unitPrice: true,
+              lineTotal: true,
+            },
+          },
+        },
+      });
+
+      response.status(200).json(
+        orders.map((order) => ({
+          ...serializeOrder(order),
+          createdAt: order.createdAt.toISOString(),
+        })),
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const getOrderDetails = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const orderIdValue = request.params.orderId;
+
+    if (
+      typeof orderIdValue !== "string" ||
+      !/^[1-9]\d*$/.test(orderIdValue)
+    ) {
+      response.status(400).json({
+        message: "A valid order ID is required.",
+      });
+      return;
+    }
+
+    const orderId = BigInt(orderIdValue);
+
+    try {
+      const order = await database.order.findFirst({
+        where: {
+          id: orderId,
+          customerId,
+        },
+        select: {
+          id: true,
+          status: true,
+          subtotal: true,
+          createdAt: true,
+          items: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              productId: true,
+              productName: true,
+              quantity: true,
+              unitPrice: true,
+              lineTotal: true,
+            },
+          },
+        },
+      });
+
+      if (order === null) {
+        response.status(404).json({
+          message: "Order not found.",
+        });
+        return;
+      }
+
+      response.status(200).json({
+        ...serializeOrder(order),
+        createdAt: order.createdAt.toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const router = Router();
+
   router.post("/", requireAuthentication, createOrder);
+  router.get("/", requireAuthentication, getOrders);
+  router.get("/:orderId", requireAuthentication, getOrderDetails);
 
   return router;
 }
