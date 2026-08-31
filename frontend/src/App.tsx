@@ -1,5 +1,6 @@
 import "./App.css";
 import ProductCatalog from "./pages/ProductCatalog";
+import Cart from "./pages/Cart";
 
 import { useState } from "react";
 import type { SubmitEvent } from "react";
@@ -20,13 +21,15 @@ type OtpVerifyResponse = {
 
 function App() {
   const { customer, isAuthenticated, isLoading, login, logout } = useAuth();
-
+  
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showProducts, setShowProducts] = useState(false);
+  const [showCart, setShowCart] = useState(false); 
+
 
   async function handleRequestOtp(event: SubmitEvent) {
     event.preventDefault();
@@ -116,35 +119,81 @@ function App() {
   }
 
   if (isAuthenticated) {
-    if (showProducts) {
-      return (
-        <main className="dashboard-page">
-          <header className="site-header">
-            <Brand />
+  if (showProducts) {
+    return (
+      <main className="dashboard-page">
+        <header className="site-header">
+          <Brand />
 
-            <div className="header-right">
-              <div className="online-status">
-                <span />
-                Account active
-              </div>
-
-              <button
-                className="header-button"
-                onClick={() => setShowProducts(false)}
-              >
-                ← Back
-              </button>
-
-              <button className="header-button" onClick={logout}>
-                Sign out
-              </button>
+          <div className="header-right">
+            <div className="online-status">
+              <span />
+              Account active
             </div>
-          </header>
 
-          <ProductCatalog />
-        </main>
-      );
-    }
+            <button
+              className="header-button"
+              onClick={() => {
+                setShowProducts(false);
+                setShowCart(false);
+              }}
+            >
+              ← Back
+            </button>
+
+            <button
+              className="header-button"
+              onClick={() => {
+                setShowProducts(false);
+                setShowCart(true);
+              }}
+            >
+              Cart
+            </button>
+
+            <button className="header-button" onClick={logout}>
+              Sign out
+            </button>
+          </div>
+        </header>
+
+        <ProductCatalog />
+      </main>
+    );
+  }
+
+  if (showCart) {
+    return (
+      <main className="dashboard-page">
+        <header className="site-header">
+          <Brand />
+
+          <div className="header-right">
+            <div className="online-status">
+              <span />
+              Account active
+            </div>
+
+            <button
+              className="header-button"
+              onClick={() => {
+                setShowCart(false);
+                setShowProducts(true);
+              }}
+            >
+              ← Products
+            </button>
+
+            <button className="header-button" onClick={logout}>
+              Sign out
+            </button>
+          </div>
+        </header>
+
+        <Cart />
+      </main>
+    );
+  }
 
     return (
       <main className="dashboard-page">
@@ -244,8 +293,11 @@ function App() {
                 </p>
               </div>
 
-              <button type="button">
-                Open cart <span>→</span>
+              <button
+                type="button"
+                onClick={() => setShowCart(true)}
+              >
+              View cart <span>→</span>
               </button>
             </div>
           </div>

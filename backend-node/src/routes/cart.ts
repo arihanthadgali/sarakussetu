@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { Router, type RequestHandler } from 'express';
 
 import { prisma } from '../database/prisma.js';
@@ -19,7 +20,7 @@ type CartRouterDependencies = {
   database?: PrismaClient;
 };
 
-const parseProductId = (value: unknown): bigint | undefined => {
+const parsePositiveId = (value: unknown): bigint | undefined => {
   if (typeof value === 'string' && /^[1-9]\d*$/.test(value)) {
     return BigInt(value);
   }
@@ -38,6 +39,64 @@ const isUniqueConstraintError = (error: unknown): boolean =>
 export const createCartRouter = ({ database = prisma }: CartRouterDependencies = {}): Router => {
   const router = Router();
 
+  const getCart: RequestHandler = async (_request, response, next) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+    if (customerId === undefined) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const cart = await database.cart.findUnique({
+        where: { customerId },
+        select: {
+          id: true,
+          items: {
+            orderBy: { createdAt: 'asc' },
+            select: {
+              id: true,
+              quantity: true,
+              product: { select: productSelection },
+            },
+          },
+        },
+      });
+
+      if (cart === null) {
+        return response.status(200).json({ id: null, items: [], subtotal: 0, itemCount: 0 });
+      }
+
+      let subtotal = new Decimal(0);
+      let itemCount = 0;
+      const items = cart.items.map((item) => {
+        const lineTotal = item.product.price.mul(item.quantity);
+        subtotal = subtotal.plus(lineTotal);
+        itemCount += item.quantity;
+
+        return {
+          id: item.id.toString(),
+          quantity: item.quantity,
+          product: {
+            id: Number(item.product.id),
+            name: item.product.name,
+            description: item.product.description,
+            price: item.product.price.toNumber(),
+            imageUrl: item.product.imageUrl,
+          },
+          lineTotal: lineTotal.toNumber(),
+        };
+      });
+
+      return response.status(200).json({
+        id: cart.id.toString(),
+        items,
+        subtotal: subtotal.toNumber(),
+        itemCount,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   const addItem: RequestHandler = async (request, response, next) => {
     const customerId = response.locals.customerId as bigint | undefined;
     if (customerId === undefined) {
@@ -45,7 +104,7 @@ export const createCartRouter = ({ database = prisma }: CartRouterDependencies =
     }
 
     const body = request.body as { productId?: unknown; quantity?: unknown } | undefined;
-    const productId = parseProductId(body?.productId);
+    const productId = parsePositiveId(body?.productId);
     const quantity = body?.quantity;
     if (productId === undefined || !isPositiveInteger(quantity)) {
       return response.status(400).json({
@@ -148,6 +207,85 @@ export const createCartRouter = ({ database = prisma }: CartRouterDependencies =
     }
   };
 
+  const updateItemQuantity: RequestHandler = async (request, response, next) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+    if (customerId === undefined) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const cartItemId = parsePositiveId(request.params.cartItemId);
+    const quantity = (request.body as { quantity?: unknown } | undefined)?.quantity;
+    if (cartItemId === undefined || !isPositiveInteger(quantity)) {
+      return response.status(400).json({
+        message: 'A valid cart item ID and positive integer quantity are required.',
+      });
+    }
+
+    try {
+      const updatedItem = await database.cartItem.updateMany({
+        where: { id: cartItemId, cart: { customerId } },
+        data: { quantity, updatedAt: new Date() },
+      });
+      if (updatedItem.count === 0) {
+        return response.status(404).json({ message: 'Cart item not found.' });
+      }
+
+      const cartItem = await database.cartItem.findFirst({
+        where: { id: cartItemId, cart: { customerId } },
+        select: {
+          id: true,
+          quantity: true,
+          product: { select: productSelection },
+        },
+      });
+      if (cartItem === null) {
+        return response.status(404).json({ message: 'Cart item not found.' });
+      }
+
+      return response.status(200).json({
+        id: cartItem.id.toString(),
+        quantity: cartItem.quantity,
+        product: {
+          id: Number(cartItem.product.id),
+          name: cartItem.product.name,
+          description: cartItem.product.description,
+          price: cartItem.product.price.toNumber(),
+          imageUrl: cartItem.product.imageUrl,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  const removeItem: RequestHandler = async (request, response, next) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+    if (customerId === undefined) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const cartItemId = parsePositiveId(request.params.cartItemId);
+    if (cartItemId === undefined) {
+      return response.status(400).json({ message: 'A valid cart item ID is required.' });
+    }
+
+    try {
+      const deletedItem = await database.cartItem.deleteMany({
+        where: { id: cartItemId, cart: { customerId } },
+      });
+      if (deletedItem.count === 0) {
+        return response.status(404).json({ message: 'Cart item not found.' });
+      }
+
+      return response.status(204).send();
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  router.get('/', requireAuthentication, getCart);
   router.post('/items', requireAuthentication, addItem);
+  router.patch('/items/:cartItemId', requireAuthentication, updateItemQuantity);
+  router.delete('/items/:cartItemId', requireAuthentication, removeItem);
   return router;
 };
