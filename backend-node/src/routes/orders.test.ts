@@ -1,0 +1,474 @@
+import { Decimal } from "@prisma/client/runtime/library";
+import type { Request, Response } from "express";
+import { describe, expect, it, vi } from "vitest";
+
+import { requireAuthentication } from "../middleware/authentication.js";
+import { createOrdersRouter } from "./orders.js";
+
+const product = {
+  id: 12n,
+  name: "Milk Chocolate Box",
+  price: new Decimal("499.00"),
+};
+
+const createResponse = (customerId?: bigint) => {
+  const response = {
+    locals: customerId === undefined ? {} : { customerId },
+    json: vi.fn(),
+    status: vi.fn(),
+  };
+
+  response.status.mockReturnValue(response);
+
+  return response as unknown as Response;
+};
+
+const createDatabase = () => {
+  const transaction = {
+    cart: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+    order: {
+      create: vi.fn().mockResolvedValue({
+        id: 21n,
+        status: "PENDING",
+        subtotal: new Decimal("998.00"),
+        items: [
+          {
+            id: 31n,
+            productId: 12n,
+            productName: "Milk Chocolate Box",
+            quantity: 2,
+            unitPrice: new Decimal("499.00"),
+            lineTotal: new Decimal("998.00"),
+          },
+        ],
+      }),
+    },
+    cartItem: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
+  };
+
+  const database = {
+    $transaction: vi.fn(
+      async (
+        callback: (client: typeof transaction) => unknown,
+      ) => callback(transaction),
+    ),
+  };
+
+  return { database, transaction };
+};
+
+const getCreateOrderHandler = (
+  database: ReturnType<typeof createDatabase>["database"],
+) => {
+  const router = createOrdersRouter({
+    database: database as never,
+    requireAuthentication,
+  });
+
+  const route = router.stack.find((layer) => layer.route?.path === "/");
+
+  if (route?.route === undefined) {
+    throw new Error("POST / route not found.");
+  }
+
+  const [authenticationHandler, createOrderHandler] = route.route.stack;
+
+  if (
+    authenticationHandler?.handle !== requireAuthentication ||
+    createOrderHandler?.handle === undefined
+  ) {
+    throw new Error("POST / route does not require authentication.");
+  }
+
+  return createOrderHandler.handle;
+};
+
+describe("POST /api/orders handler", () => {
+  it("rejects requests without authenticated customer context", async () => {
+    const { database } = createDatabase();
+    const response = createResponse();
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.$transaction).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({
+      error: "Unauthorized",
+    });
+  });
+
+  it("rejects an authenticated customer with no cart", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.cart.findUnique).toHaveBeenCalledWith({
+      where: { customerId: 3n },
+      select: {
+        id: true,
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(transaction.order.create).not.toHaveBeenCalled();
+    expect(transaction.cartItem.deleteMany).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Cart is empty.",
+    });
+  });
+
+  it("rejects an authenticated customer with an empty cart", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [],
+    });
+
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.create).not.toHaveBeenCalled();
+    expect(transaction.cartItem.deleteMany).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Cart is empty.",
+    });
+  });
+
+  it("creates an order from the authenticated customer's cart", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [
+        {
+          id: 17n,
+          quantity: 2,
+          product,
+        },
+      ],
+    });
+
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(database.$transaction).toHaveBeenCalledTimes(1);
+
+    expect(transaction.order.create).toHaveBeenCalledWith({
+      data: {
+        customerId: 3n,
+        status: "PENDING",
+        subtotal: new Decimal("998"),
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+        items: {
+          create: [
+            {
+              productId: 12n,
+              productName: "Milk Chocolate Box",
+              quantity: 2,
+              unitPrice: new Decimal("499.00"),
+              lineTotal: new Decimal("998"),
+              createdAt: expect.any(Date),
+              updatedAt: expect.any(Date),
+            },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        subtotal: true,
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            productName: true,
+            quantity: true,
+            unitPrice: true,
+            lineTotal: true,
+          },
+        },
+      },
+    });
+
+    expect(transaction.cartItem.deleteMany).toHaveBeenCalledWith({
+      where: { cartId: 9n },
+    });
+
+    expect(response.status).toHaveBeenCalledWith(201);
+    expect(response.json).toHaveBeenCalledWith({
+      id: "21",
+      status: "PENDING",
+      subtotal: 998,
+      items: [
+        {
+          id: "31",
+          productId: 12,
+          productName: "Milk Chocolate Box",
+          quantity: 2,
+          unitPrice: 499,
+          lineTotal: 998,
+        },
+      ],
+    });
+  });
+
+  it("calculates multiple order lines and the Decimal-safe subtotal", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [
+        {
+          id: 17n,
+          quantity: 2,
+          product: {
+            id: 12n,
+            name: "Milk Chocolate Box",
+            price: new Decimal("499.99"),
+          },
+        },
+        {
+          id: 18n,
+          quantity: 3,
+          product: {
+            id: 13n,
+            name: "Dark Chocolate Box",
+            price: new Decimal("599.50"),
+          },
+        },
+      ],
+    });
+
+    transaction.order.create.mockResolvedValueOnce({
+      id: 22n,
+      status: "PENDING",
+      subtotal: new Decimal("2798.98"),
+      items: [
+        {
+          id: 32n,
+          productId: 12n,
+          productName: "Milk Chocolate Box",
+          quantity: 2,
+          unitPrice: new Decimal("499.99"),
+          lineTotal: new Decimal("999.98"),
+        },
+        {
+          id: 33n,
+          productId: 13n,
+          productName: "Dark Chocolate Box",
+          quantity: 3,
+          unitPrice: new Decimal("599.50"),
+          lineTotal: new Decimal("1798.50"),
+        },
+      ],
+    });
+
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: new Decimal("2798.48"),
+          items: {
+            create: [
+              expect.objectContaining({
+                productId: 12n,
+                quantity: 2,
+                unitPrice: new Decimal("499.99"),
+                lineTotal: new Decimal("999.98"),
+              }),
+              expect.objectContaining({
+                productId: 13n,
+                quantity: 3,
+                unitPrice: new Decimal("599.50"),
+                lineTotal: new Decimal("1798.50"),
+              }),
+            ],
+          },
+        }),
+      }),
+    );
+  });
+
+  it("uses the current product price and stores it on the order item", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [
+        {
+          id: 17n,
+          quantity: 4,
+          product: {
+            id: 12n,
+            name: "Milk Chocolate Box",
+            price: new Decimal("525.75"),
+          },
+        },
+      ],
+    });
+
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: new Decimal("2103.00"),
+          items: {
+            create: [
+              expect.objectContaining({
+                productId: 12n,
+                productName: "Milk Chocolate Box",
+                quantity: 4,
+                unitPrice: new Decimal("525.75"),
+                lineTotal: new Decimal("2103.00"),
+              }),
+            ],
+          },
+        }),
+      }),
+    );
+  });
+
+  it("only reads the cart belonging to the authenticated customer", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 15n,
+      items: [
+        {
+          id: 40n,
+          quantity: 1,
+          product,
+        },
+      ],
+    });
+
+    const response = createResponse(99n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.cart.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { customerId: 99n },
+      }),
+    );
+
+    expect(transaction.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          customerId: 99n,
+        }),
+      }),
+    );
+  });
+
+  it("clears the customer's cart only after creating the order", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.cart.findUnique.mockResolvedValueOnce({
+      id: 9n,
+      items: [
+        {
+          id: 17n,
+          quantity: 2,
+          product,
+        },
+      ],
+    });
+
+    const response = createResponse(3n);
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
+
+    const createOrderCall =
+  transaction.order.create.mock.invocationCallOrder[0];
+
+    const deleteCartCall =
+  transaction.cartItem.deleteMany.mock.invocationCallOrder[0];
+
+    expect(createOrderCall).toBeDefined();
+    expect(deleteCartCall).toBeDefined();
+    expect(createOrderCall!).toBeLessThan(deleteCartCall!);
+  });
+
+  it("forwards database errors to the shared error handler", async () => {
+    const { database, transaction } = createDatabase();
+
+    const failure = new Error("database unavailable");
+
+    transaction.cart.findUnique.mockRejectedValueOnce(failure);
+
+    const response = createResponse(3n);
+    const next = vi.fn();
+
+    await getCreateOrderHandler(database)(
+      {} as Request,
+      response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(failure);
+  });
+});
