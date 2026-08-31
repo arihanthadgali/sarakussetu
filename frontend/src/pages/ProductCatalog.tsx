@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+
+import { addToCart } from "../cart/cartApi";
 import { apiRequest } from "../api/client";
 import "./ProductCatalog.css";
 
@@ -14,6 +16,11 @@ export default function ProductCatalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [addingProductId, setAddingProductId] = useState<number | null>(null);
+  const [cartMessage, setCartMessage] = useState<{
+  productName: string;
+  quantity: number;
+} | null>(null);
 
   useEffect(() => {
     async function loadProducts() {
@@ -33,6 +40,27 @@ export default function ProductCatalog() {
     loadProducts();
   }, []);
 
+  async function handleAddToCart(productId: number) {
+  setAddingProductId(productId);
+  setCartMessage(null);
+
+  try {
+    const cartItem = await addToCart(productId);
+
+    const addedProduct = products.find(
+      (product) => product.id === productId,
+    );
+
+    setCartMessage({
+      productName: addedProduct?.name ?? cartItem.product.name,
+      quantity: cartItem.quantity,
+    });
+  } catch {
+    setCartMessage(null);
+  } finally {
+    setAddingProductId(null);
+  }
+}
   if (isLoading) {
     return (
       <section className="catalog-page">
@@ -45,9 +73,7 @@ export default function ProductCatalog() {
             </div>
           </div>
 
-          <div className="catalog-status">
-            Loading products...
-          </div>
+          <div className="catalog-status">Loading products...</div>
         </div>
       </section>
     );
@@ -65,9 +91,7 @@ export default function ProductCatalog() {
             </div>
           </div>
 
-          <div className="catalog-status catalog-error">
-            {error}
-          </div>
+          <div className="catalog-status catalog-error">{error}</div>
         </div>
       </section>
     );
@@ -80,15 +104,24 @@ export default function ProductCatalog() {
           <div>
             <span className="catalog-kicker">PRODUCT CATALOG</span>
             <h1>Products</h1>
-            <p>
-              Browse products available from your wholesale network.
-            </p>
+            <p>Browse products available from your wholesale network.</p>
           </div>
 
-          <div className="product-count">
-            {products.length} products
-          </div>
+          <div className="product-count">{products.length} products</div>
         </div>
+
+        {cartMessage && (
+          <div className="catalog-cart-message">{cartMessage && (
+  <div className="cart-message">
+    <strong>
+      ✓ {cartMessage.productName} added to cart
+    </strong>
+    <span>
+      Quantity: {cartMessage.quantity}
+    </span>
+  </div>
+)}</div>
+        )}
 
         {products.length === 0 ? (
           <div className="catalog-status">
@@ -99,9 +132,7 @@ export default function ProductCatalog() {
             {products.map((product) => (
               <article className="product-card" key={product.id}>
                 <div className="product-image">
-                  <div className="product-image-placeholder">
-                    S
-                  </div>
+                  <div className="product-image-placeholder">S</div>
                 </div>
 
                 <div className="product-content">
@@ -111,12 +142,16 @@ export default function ProductCatalog() {
                   </div>
 
                   <div className="product-footer">
-                    <strong>
-                      ₹{product.price.toFixed(2)}
-                    </strong>
+                    <strong>₹{product.price.toFixed(2)}</strong>
 
-                    <button type="button">
-                      Add to order
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCart(product.id)}
+                      disabled={addingProductId === product.id}
+                    >
+                      {addingProductId === product.id
+                        ? "Adding..."
+                        : "Add to order"}
                     </button>
                   </div>
                 </div>
