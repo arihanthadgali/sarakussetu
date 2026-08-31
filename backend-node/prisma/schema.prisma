@@ -16,6 +16,7 @@ model Customer {
   updatedAt        DateTime          @map("updated_at") @db.Timestamp(6)
   otpVerifications OtpVerification[]
   cart             Cart?
+  orders           Order[]
 
   @@map("customers")
 }
@@ -61,7 +62,38 @@ model CartItem {
   @@index([productId], map: "idx_cart_items_product_id")
   @@map("cart_items")
 }
+model Order {
+  id         BigInt      @id @default(autoincrement()) @db.BigInt
+  customerId BigInt      @map("customer_id") @db.BigInt
+  status     String      @db.VarChar(30)
+  subtotal   Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime    @map("updated_at") @db.Timestamp(6)
 
+  customer   Customer    @relation(fields: [customerId], references: [id], map: "fk_orders_customer")
+  items      OrderItem[]
+
+  @@index([customerId], map: "idx_orders_customer_id")
+  @@map("orders")
+}
+model OrderItem {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  orderId     BigInt   @map("order_id") @db.BigInt
+  productId   BigInt   @map("product_id") @db.BigInt
+  productName String   @map("product_name") @db.VarChar(255)
+  quantity    Int      @db.Int
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  lineTotal   Decimal  @map("line_total") @db.Decimal(10, 2)
+  createdAt   DateTime @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @map("updated_at") @db.Timestamp(6)
+
+  order       Order    @relation(fields: [orderId], references: [id], map: "fk_order_items_order")
+  product     Product  @relation(fields: [productId], references: [id], map: "fk_order_items_product")
+
+  @@index([orderId], map: "idx_order_items_order_id")
+  @@index([productId], map: "idx_order_items_product_id")
+  @@map("order_items")
+}
 model Product {
   id          BigInt   @id @default(autoincrement()) @db.BigInt
   name        String   @db.VarChar(255)
@@ -72,6 +104,7 @@ model Product {
   createdAt   DateTime @map("created_at") @db.Timestamp(6)
   updatedAt   DateTime @map("updated_at") @db.Timestamp(6)
   cartItems   CartItem[]
+  orderItems  OrderItem[]
 
   @@map("products")
 }
