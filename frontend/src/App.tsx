@@ -1,12 +1,14 @@
-import "./App.css";
-import ProductCatalog from "./pages/ProductCatalog";
-import Cart from "./pages/Cart";
-
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
+import "./App.css";
+
 import { apiRequest } from "./api/client";
 import { useAuth } from "./auth/useAuth";
+
+import Cart from "./pages/Cart";
+import Orders from "./pages/Orders";
+import ProductCatalog from "./pages/ProductCatalog";
 
 type OtpRequestResponse = {
   message: string;
@@ -21,15 +23,40 @@ type OtpVerifyResponse = {
 
 function App() {
   const { customer, isAuthenticated, isLoading, login, logout } = useAuth();
-  
+
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showProducts, setShowProducts] = useState(false);
-  const [showCart, setShowCart] = useState(false); 
 
+  const [showProducts, setShowProducts] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+
+  const goHome = () => {
+    setShowProducts(false);
+    setShowCart(false);
+    setShowOrders(false);
+  };
+
+  const openProducts = () => {
+    setShowProducts(true);
+    setShowCart(false);
+    setShowOrders(false);
+  };
+
+  const openCart = () => {
+    setShowProducts(false);
+    setShowCart(true);
+    setShowOrders(false);
+  };
+
+  const openOrders = () => {
+    setShowProducts(false);
+    setShowCart(false);
+    setShowOrders(true);
+  };
 
   async function handleRequestOtp(event: SubmitEvent) {
     event.preventDefault();
@@ -119,11 +146,123 @@ function App() {
   }
 
   if (isAuthenticated) {
-  if (showProducts) {
+    if (showProducts) {
+      return (
+        <main className="dashboard-page">
+          <header className="site-header">
+            <Brand onClick={goHome} />
+
+            <div className="header-right">
+              <div className="online-status">
+                <span />
+                Account active
+              </div>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={goHome}
+              >
+                ← Back
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={openCart}
+              >
+                Cart
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={logout}
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <ProductCatalog />
+        </main>
+      );
+    }
+
+    if (showCart) {
+      return (
+        <main className="dashboard-page">
+          <header className="site-header">
+            <Brand onClick={goHome} />
+
+            <div className="header-right">
+              <div className="online-status">
+                <span />
+                Account active
+              </div>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={openProducts}
+              >
+                ← Products
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={logout}
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <Cart />
+        </main>
+      );
+    }
+
+    if (showOrders) {
+      return (
+        <main className="dashboard-page">
+          <header className="site-header">
+            <Brand onClick={goHome} />
+
+            <div className="header-right">
+              <div className="online-status">
+                <span />
+                Account active
+              </div>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={goHome}
+              >
+                ← Back
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={logout}
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <Orders />
+        </main>
+      );
+    }
+
     return (
       <main className="dashboard-page">
         <header className="site-header">
-          <Brand />
+          <Brand onClick={goHome} />
 
           <div className="header-right">
             <div className="online-status">
@@ -133,80 +272,9 @@ function App() {
 
             <button
               className="header-button"
-              onClick={() => {
-                setShowProducts(false);
-                setShowCart(false);
-              }}
+              type="button"
+              onClick={logout}
             >
-              ← Back
-            </button>
-
-            <button
-              className="header-button"
-              onClick={() => {
-                setShowProducts(false);
-                setShowCart(true);
-              }}
-            >
-              Cart
-            </button>
-
-            <button className="header-button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        <ProductCatalog />
-      </main>
-    );
-  }
-
-  if (showCart) {
-    return (
-      <main className="dashboard-page">
-        <header className="site-header">
-          <Brand />
-
-          <div className="header-right">
-            <div className="online-status">
-              <span />
-              Account active
-            </div>
-
-            <button
-              className="header-button"
-              onClick={() => {
-                setShowCart(false);
-                setShowProducts(true);
-              }}
-            >
-              ← Products
-            </button>
-
-            <button className="header-button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        <Cart />
-      </main>
-    );
-  }
-
-    return (
-      <main className="dashboard-page">
-        <header className="site-header">
-          <Brand />
-
-          <div className="header-right">
-            <div className="online-status">
-              <span />
-              Account active
-            </div>
-
-            <button className="header-button" onClick={logout}>
               Sign out
             </button>
           </div>
@@ -216,10 +284,12 @@ function App() {
           <div className="dashboard-heading">
             <div>
               <div className="section-kicker">YOUR BUSINESS</div>
+
               <h1>
                 Good to see you
                 <span>.</span>
               </h1>
+
               <p>
                 Everything you need to manage your wholesale purchases,
                 orders and shop supplies.
@@ -228,6 +298,7 @@ function App() {
 
             <div className="account-card">
               <div className="avatar">A</div>
+
               <div>
                 <strong>Shop account</strong>
                 <small>+91 {customer?.phoneNumber}</small>
@@ -236,7 +307,11 @@ function App() {
           </div>
 
           <div className="dashboard-grid">
-            <div className="dashboard-card dashboard-primary">
+            <div
+              className={`dashboard-card ${
+                showProducts ? "dashboard-primary" : ""
+              }`}
+            >
               <div className="card-top">
                 <span className="card-icon">↗</span>
                 <span>01</span>
@@ -244,7 +319,9 @@ function App() {
 
               <div>
                 <small>PRODUCTS</small>
+
                 <h2>Find what your shop needs.</h2>
+
                 <p>
                   Browse products from your wholesale network and start
                   building your order.
@@ -253,13 +330,17 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => setShowProducts(true)}
+                onClick={openProducts}
               >
                 Browse products <span>→</span>
               </button>
             </div>
 
-            <div className="dashboard-card">
+            <div
+              className={`dashboard-card ${
+                showOrders ? "dashboard-primary" : ""
+              }`}
+            >
               <div className="card-top">
                 <span className="card-icon">↻</span>
                 <span>02</span>
@@ -267,18 +348,27 @@ function App() {
 
               <div>
                 <small>ORDERS</small>
+
                 <h2>Keep track of every order.</h2>
+
                 <p>
                   View previous purchases and follow your latest deliveries.
                 </p>
               </div>
 
-              <button type="button">
+              <button
+                type="button"
+                onClick={openOrders}
+              >
                 View orders <span>→</span>
               </button>
             </div>
 
-            <div className="dashboard-card">
+            <div
+              className={`dashboard-card ${
+                showCart ? "dashboard-primary" : ""
+              }`}
+            >
               <div className="card-top">
                 <span className="card-icon">□</span>
                 <span>03</span>
@@ -286,7 +376,9 @@ function App() {
 
               <div>
                 <small>CART</small>
+
                 <h2>Your next order starts here.</h2>
+
                 <p>
                   Products you select will be ready for review before
                   checkout.
@@ -295,9 +387,9 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => setShowCart(true)}
+                onClick={openCart}
               >
-              View cart <span>→</span>
+                View cart <span>→</span>
               </button>
             </div>
           </div>
@@ -305,8 +397,10 @@ function App() {
           <div className="dashboard-strip">
             <div>
               <span className="strip-mark">S</span>
+
               <div>
                 <strong>Wholesale to Your Shop</strong>
+
                 <p>
                   A simpler connection between suppliers and retailers.
                 </p>
@@ -323,7 +417,7 @@ function App() {
   return (
     <main className="auth-page">
       <header className="site-header">
-        <Brand />
+        <Brand onClick={goHome} />
 
         <div className="header-right">
           <div className="online-status">
@@ -389,6 +483,7 @@ function App() {
               {step === "phone" ? (
                 <>
                   <h2>Welcome back.</h2>
+
                   <p>
                     Enter your mobile number to access your SarakuSetu
                     account.
@@ -397,6 +492,7 @@ function App() {
               ) : (
                 <>
                   <h2>Verify your number.</h2>
+
                   <p>
                     Enter the 6-digit code sent to{" "}
                     <strong>+91 {phoneNumber}</strong>.
@@ -411,6 +507,7 @@ function App() {
 
                 <div className="phone-field">
                   <span>+91</span>
+
                   <input
                     id="phone"
                     type="tel"
@@ -435,6 +532,7 @@ function App() {
                   <span>
                     {isSubmitting ? "Sending OTP..." : "Continue"}
                   </span>
+
                   {!isSubmitting && <b>→</b>}
                 </button>
               </form>
@@ -465,6 +563,7 @@ function App() {
                   <span>
                     {isSubmitting ? "Verifying..." : "Verify & Continue"}
                   </span>
+
                   {!isSubmitting && <b>→</b>}
                 </button>
 
@@ -493,8 +592,10 @@ function App() {
 
             <div className="login-security">
               <div className="security-icon">✓</div>
+
               <div>
                 <strong>Secure authentication</strong>
+
                 <p>
                   Your account is protected with one-time password
                   verification.
@@ -532,16 +633,25 @@ function App() {
   );
 }
 
-function Brand() {
+function Brand({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="brand">
-      <div className="brand-symbol">S</div>
+    <button
+      type="button"
+      className="brand-button"
+      onClick={onClick}
+      aria-label="Go to home"
+    >
+      <div className="brand">
+        <div className="brand-mark">S</div>
 
-      <div>
-        <div className="brand-name">SARAKUSETU</div>
-        <div className="brand-tagline">Wholesale to Your Shop</div>
+        <div className="brand-copy">
+          <div className="brand-name">SARAKUSETU</div>
+          <div className="brand-tagline">
+            Wholesale to Your Shop
+          </div>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
 
