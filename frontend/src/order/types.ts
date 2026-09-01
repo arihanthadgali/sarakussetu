@@ -14,3 +14,5 @@ export type Order = {
   createdAt: string;
   items: OrderItem[];
 };
+
+export type OrderDetails = Order;

@@ -6,6 +6,8 @@ import {
   updateCartItem,
   type Cart,
 } from "../cart/cartApi";
+import { createOrder } from "../order/orderApi";
+import type { OrderDetails } from "../order/types";
 import "./Cart.css";
 
 export default function Cart() {
@@ -14,6 +16,9 @@ export default function Cart() {
   const [error, setError] = useState("");
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [orderCreated, setOrderCreated] = useState<OrderDetails | null>(null);
 
   async function loadCart() {
     try {
@@ -29,6 +34,26 @@ export default function Cart() {
       setIsLoading(false);
     });
   }, []);
+
+  async function handleCheckout() {
+    setIsCheckingOut(true);
+    setCheckoutError("");
+
+    try {
+      const order = await createOrder();
+
+      setOrderCreated(order);
+
+      const refreshedCart = await getCart();
+      setCart(refreshedCart);
+    } catch {
+      setCheckoutError(
+        "Unable to place your order. Please check your cart and try again.",
+      );
+    } finally {
+      setIsCheckingOut(false);
+    }
+  }
 
   async function handleQuantityChange(
     cartItemId: string,
@@ -54,7 +79,8 @@ export default function Cart() {
             ? {
                 ...item,
                 quantity: updatedItem.quantity,
-                lineTotal: updatedItem.product.price * updatedItem.quantity,
+                lineTotal:
+                  updatedItem.product.price * updatedItem.quantity,
               }
             : item,
         );
@@ -148,6 +174,50 @@ export default function Cart() {
           </div>
 
           <div className="cart-status cart-error">{error}</div>
+        </div>
+      </section>
+    );
+  }
+
+  if (orderCreated !== null) {
+    return (
+      <section className="cart-page">
+        <div className="cart-container">
+          <div className="checkout-success">
+            <span className="checkout-success-icon">✓</span>
+
+            <span className="cart-kicker">ORDER CONFIRMED</span>
+
+            <h1>Order placed.</h1>
+
+            <p>
+              Your order <strong>#{orderCreated.id}</strong> has been
+              created successfully.
+            </p>
+
+            <div className="checkout-success-summary">
+              <div>
+                <small>ORDER TOTAL</small>
+                <strong>₹{orderCreated.subtotal.toFixed(2)}</strong>
+              </div>
+
+              <div>
+                <small>STATUS</small>
+                <strong>{orderCreated.status}</strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="checkout-success-button"
+              onClick={() => {
+                setOrderCreated(null);
+                loadCart();
+              }}
+            >
+              Continue shopping →
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -276,11 +346,25 @@ export default function Cart() {
               <strong>₹{cart.subtotal.toFixed(2)}</strong>
             </div>
 
-            <button type="button" disabled>
-              Checkout <span>→</span>
+            {checkoutError && (
+              <div className="checkout-error">
+                {checkoutError}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="checkout-button"
+              onClick={handleCheckout}
+              disabled={isCheckingOut || cart.items.length === 0}
+            >
+              {isCheckingOut ? "Placing order..." : "Checkout"}
+              <span>→</span>
             </button>
 
-            <small>Checkout will be available in a later step.</small>
+            <small>
+              Your order will be created immediately after checkout.
+            </small>
           </aside>
         </div>
       </div>
