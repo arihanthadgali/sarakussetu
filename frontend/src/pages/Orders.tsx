@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { getOrderDetails, getOrders } from "../order/orderApi";
-import type { Order } from "../order/types";
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_STEPS,
+  type Order,
+  type OrderStatus,
+} from "../order/types";
 import "./Orders.css";
 
 function formatDate(value: string): string {
@@ -19,6 +24,51 @@ function getItemLabel(order: Order): string {
   );
 
   return `${count} ${count === 1 ? "item" : "items"}`;
+}
+
+function getStatusLabel(status: OrderStatus): string {
+  return ORDER_STATUS_LABELS[status];
+}
+
+function OrderStatusTracker({ status }: { status: OrderStatus }) {
+  if (status === "CANCELLED") {
+    return (
+      <section className="order-tracker order-tracker-cancelled" aria-label="Order status">
+        <span className="order-tracker-cancelled-icon" aria-hidden="true">×</span>
+        <div>
+          <strong>Order cancelled</strong>
+          <p>This order will not move through the delivery process.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const currentStep = ORDER_STATUS_STEPS.indexOf(status);
+
+  return (
+    <section className="order-tracker" aria-label={`Order status: ${getStatusLabel(status)}`}>
+      <div className="order-tracker-heading">
+        <div>
+          <span>ORDER TRACKING</span>
+          <strong>{getStatusLabel(status)}</strong>
+        </div>
+        <small>Current status</small>
+      </div>
+
+      <ol className="order-tracker-steps">
+        {ORDER_STATUS_STEPS.map((step, index) => {
+          const state = index < currentStep ? "complete" : index === currentStep ? "current" : "upcoming";
+
+          return (
+            <li className={`order-tracker-step ${state}`} key={step}>
+              <span className="order-tracker-marker" aria-hidden="true">{index < currentStep ? "✓" : index + 1}</span>
+              <span>{getStatusLabel(step)}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
 }
 
 export default function Orders() {
@@ -110,9 +160,11 @@ export default function Orders() {
                 <span
                   className={`order-status order-status-${selectedOrder.status.toLowerCase()}`}
                 >
-                  {selectedOrder.status}
+                  {getStatusLabel(selectedOrder.status)}
                 </span>
               </div>
+
+              <OrderStatusTracker status={selectedOrder.status} />
 
               <div className="order-details-card">
                 <div className="order-details-card-header">
@@ -218,7 +270,7 @@ export default function Orders() {
                   <span
                     className={`order-status order-status-${order.status.toLowerCase()}`}
                   >
-                    {order.status}
+                    {getStatusLabel(order.status)}
                   </span>
                 </div>
 
