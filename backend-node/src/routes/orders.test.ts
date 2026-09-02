@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 
 import { requireAuthentication } from "../middleware/authentication.js";
+import { ORDER_STATUSES } from "../order/orderStatus.js";
 import { createOrdersRouter } from "./orders.js";
 
 const product = {
@@ -44,6 +45,7 @@ const createDatabase = () => {
           },
         ],
       }),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     cartItem: {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -56,6 +58,9 @@ const createDatabase = () => {
         callback: (client: typeof transaction) => unknown,
       ) => callback(transaction),
     ),
+    order: {
+      findMany: transaction.order.findMany,
+    },
   };
 
   return { database, transaction };
@@ -85,6 +90,32 @@ const getCreateOrderHandler = (
   }
 
   return createOrderHandler.handle;
+};
+
+const getOrdersHandler = (
+  database: ReturnType<typeof createDatabase>["database"],
+) => {
+  const router = createOrdersRouter({
+    database: database as never,
+    requireAuthentication,
+  });
+
+  const route = router.stack.filter((layer) => layer.route?.path === "/")[1];
+
+  if (route?.route === undefined) {
+    throw new Error("GET / route not found.");
+  }
+
+  const [authenticationHandler, getOrdersHandler] = route.route.stack;
+
+  if (
+    authenticationHandler?.handle !== requireAuthentication ||
+    getOrdersHandler?.handle === undefined
+  ) {
+    throw new Error("GET / route does not require authentication.");
+  }
+
+  return getOrdersHandler.handle;
 };
 
 describe("POST /api/orders handler", () => {
@@ -470,5 +501,105 @@ describe("POST /api/orders handler", () => {
     );
 
     expect(next).toHaveBeenCalledWith(failure);
+  });
+});
+
+describe("GET /api/orders handler", () => {
+  it("rejects unauthenticated requests without querying orders", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse();
+
+    await getOrdersHandler(database)({} as Request, response, vi.fn());
+
+    expect(transaction.order.findMany).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+  });
+
+  it("returns the authenticated customer's orders with their current statuses and existing fields", async () => {
+    const { database, transaction } = createDatabase();
+    const createdAt = new Date("2026-09-02T10:30:00.000Z");
+
+    transaction.order.findMany.mockResolvedValueOnce([
+      {
+        id: 41n,
+        status: ORDER_STATUSES[3],
+        subtotal: new Decimal("998.00"),
+        createdAt,
+        items: [
+          {
+            id: 51n,
+            productId: 12n,
+            productName: "Milk Chocolate Box",
+            quantity: 2,
+            unitPrice: new Decimal("499.00"),
+            lineTotal: new Decimal("998.00"),
+          },
+        ],
+      },
+      {
+        id: 42n,
+        status: ORDER_STATUSES[5],
+        subtotal: new Decimal("250.50"),
+        createdAt: new Date("2026-09-01T10:30:00.000Z"),
+        items: [],
+      },
+    ]);
+
+    const response = createResponse(7n);
+    await getOrdersHandler(database)({} as Request, response, vi.fn());
+
+    expect(transaction.order.findMany).toHaveBeenCalledWith({
+      where: { customerId: 7n },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        subtotal: true,
+        createdAt: true,
+        items: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            productId: true,
+            productName: true,
+            quantity: true,
+            unitPrice: true,
+            lineTotal: true,
+          },
+        },
+      },
+    });
+
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith([
+      {
+        id: "41",
+        status: ORDER_STATUSES[3],
+        subtotal: 998,
+        createdAt: createdAt.toISOString(),
+        items: [{ id: "51", productId: 12, productName: "Milk Chocolate Box", quantity: 2, unitPrice: 499, lineTotal: 998 }],
+      },
+      {
+        id: "42",
+        status: ORDER_STATUSES[5],
+        subtotal: 250.5,
+        createdAt: "2026-09-01T10:30:00.000Z",
+        items: [],
+      },
+    ]);
+  });
+
+  it("returns an empty list successfully for an authenticated customer", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(8n);
+
+    await getOrdersHandler(database)({} as Request, response, vi.fn());
+
+    expect(transaction.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { customerId: 8n } }),
+    );
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith([]);
   });
 });
