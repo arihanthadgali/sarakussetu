@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { INITIAL_ORDER_STATUS } from "../order/orderStatus.js";
+import {
+  INITIAL_ORDER_STATUS,
+  isOrderStatus,
+  transitionOrderStatus,
+} from "../order/orderStatus.js";
 import {
   Router,
   type Request,
@@ -234,10 +238,79 @@ export function createOrdersRouter({
     }
   };
 
+  const cancelOrder = async (
+    request: Request<{ orderId: string }>,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { orderId: orderIdParam } = request.params;
+
+    if (!/^\d+$/.test(orderIdParam)) {
+      response.status(400).json({ message: "Invalid order ID." });
+      return;
+    }
+
+    const orderId = BigInt(orderIdParam);
+
+    try {
+      const order = await database.order.findFirst({
+        where: { id: orderId, customerId },
+        select: { id: true, status: true },
+      });
+
+      if (order === null) {
+        response.status(404).json({ message: "Order not found." });
+        return;
+      }
+
+      if (!isOrderStatus(order.status)) {
+        next(new Error(`Invalid current order status: ${order.status}`));
+        return;
+      }
+
+      let status: string;
+
+      try {
+        status = transitionOrderStatus(order.status, "CANCELLED");
+      } catch (error) {
+        response.status(409).json({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Order cancellation is not allowed.",
+        });
+        return;
+      }
+
+      const updatedAt = new Date();
+      const updateResult = await database.order.updateMany({
+        where: { id: orderId, customerId },
+        data: { status, updatedAt },
+      });
+
+      if (updateResult.count === 0) {
+        response.status(404).json({ message: "Order not found." });
+        return;
+      }
+
+      response.status(200).json({ id: order.id.toString(), status });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   const router = Router();
 
   router.post("/", requireAuthentication, createOrder);
   router.get("/", requireAuthentication, getOrders);
+  router.delete("/:orderId", requireAuthentication, cancelOrder);
 
   return router;
 }
