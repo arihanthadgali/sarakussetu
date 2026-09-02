@@ -7,6 +7,7 @@ import { apiRequest } from "./api/client";
 import { useAuth } from "./auth/useAuth";
 
 import Cart from "./pages/Cart";
+import { Home } from "./pages/Home";
 import Orders from "./pages/Orders";
 import ProductCatalog from "./pages/ProductCatalog";
 
@@ -22,7 +23,7 @@ type OtpVerifyResponse = {
 };
 
 function App() {
-  const { customer, isAuthenticated, isLoading, login, logout } = useAuth();
+  const { isAuthenticated, isLoading, login, logout } = useAuth();
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
@@ -171,7 +172,15 @@ function App() {
                 type="button"
                 onClick={openCart}
               >
-                Cart
+                Cart →
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
+                onClick={openOrders}
+              >
+                Orders
               </button>
 
               <button
@@ -212,6 +221,14 @@ function App() {
               <button
                 className="header-button"
                 type="button"
+                onClick={openOrders}
+              >
+                Orders
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
                 onClick={logout}
               >
                 Sign out
@@ -247,6 +264,14 @@ function App() {
               <button
                 className="header-button"
                 type="button"
+                onClick={openCart}
+              >
+                Cart
+              </button>
+
+              <button
+                className="header-button"
+                type="button"
                 onClick={logout}
               >
                 Sign out
@@ -270,6 +295,14 @@ function App() {
               Account active
             </div>
 
+            <button className="header-button" type="button" onClick={openOrders}>
+              Orders
+            </button>
+
+            <button className="header-button" type="button" onClick={openCart}>
+              Cart
+            </button>
+
             <button
               className="header-button"
               type="button"
@@ -280,136 +313,11 @@ function App() {
           </div>
         </header>
 
-        <section className="dashboard-content">
-          <div className="dashboard-heading">
-            <div>
-              <div className="section-kicker">YOUR BUSINESS</div>
-
-              <h1>
-                Good to see you
-                <span>.</span>
-              </h1>
-
-              <p>
-                Everything you need to manage your wholesale purchases,
-                orders and shop supplies.
-              </p>
-            </div>
-
-            <div className="account-card">
-              <div className="avatar">A</div>
-
-              <div>
-                <strong>Shop account</strong>
-                <small>+91 {customer?.phoneNumber}</small>
-              </div>
-            </div>
-          </div>
-
-          <div className="dashboard-grid">
-            <div
-              className={`dashboard-card ${
-                showProducts ? "dashboard-primary" : ""
-              }`}
-            >
-              <div className="card-top">
-                <span className="card-icon">↗</span>
-                <span>01</span>
-              </div>
-
-              <div>
-                <small>PRODUCTS</small>
-
-                <h2>Find what your shop needs.</h2>
-
-                <p>
-                  Browse products from your wholesale network and start
-                  building your order.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openProducts}
-              >
-                Browse products <span>→</span>
-              </button>
-            </div>
-
-            <div
-              className={`dashboard-card ${
-                showOrders ? "dashboard-primary" : ""
-              }`}
-            >
-              <div className="card-top">
-                <span className="card-icon">↻</span>
-                <span>02</span>
-              </div>
-
-              <div>
-                <small>ORDERS</small>
-
-                <h2>Keep track of every order.</h2>
-
-                <p>
-                  View previous purchases and follow your latest deliveries.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openOrders}
-              >
-                View orders <span>→</span>
-              </button>
-            </div>
-
-            <div
-              className={`dashboard-card ${
-                showCart ? "dashboard-primary" : ""
-              }`}
-            >
-              <div className="card-top">
-                <span className="card-icon">□</span>
-                <span>03</span>
-              </div>
-
-              <div>
-                <small>CART</small>
-
-                <h2>Your next order starts here.</h2>
-
-                <p>
-                  Products you select will be ready for review before
-                  checkout.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openCart}
-              >
-                View cart <span>→</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="dashboard-strip">
-            <div>
-              <span className="strip-mark">S</span>
-
-              <div>
-                <strong>Wholesale to Your Shop</strong>
-
-                <p>
-                  A simpler connection between suppliers and retailers.
-                </p>
-              </div>
-            </div>
-
-            <span className="strip-arrow">→</span>
-          </div>
-        </section>
+        <Home
+          onBrowseProducts={openProducts}
+          onOpenCart={openCart}
+          onOpenOrders={openOrders}
+        />
       </main>
     );
   }

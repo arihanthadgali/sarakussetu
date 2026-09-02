@@ -17,6 +17,7 @@ export default function ProductCatalog() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [addingProductId, setAddingProductId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [cartMessage, setCartMessage] = useState<{
   productName: string;
   quantity: number;
@@ -61,6 +62,11 @@ export default function ProductCatalog() {
     setAddingProductId(null);
   }
 }
+  const visibleProducts = products.filter((product) => {
+    const searchableText = `${product.name} ${product.description ?? ""}`;
+    return searchableText.toLowerCase().includes(searchTerm.trim().toLowerCase());
+  });
+
   if (isLoading) {
     return (
       <section className="catalog-page">
@@ -110,6 +116,14 @@ export default function ProductCatalog() {
           <div className="product-count">{products.length} products</div>
         </div>
 
+        <div className="catalog-tools">
+          <label className="catalog-search" htmlFor="product-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="product-search" placeholder="Search products" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+          </label>
+          <div className="catalog-category" aria-label="Product view"><span aria-hidden="true">▦</span><strong>All products</strong></div>
+        </div>
+
         {cartMessage && (
           <div className="catalog-cart-message">{cartMessage && (
   <div className="cart-message">
@@ -129,16 +143,20 @@ export default function ProductCatalog() {
           </div>
         ) : (
           <div className="product-grid">
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <article className="product-card" key={product.id}>
                 <div className="product-image">
-                  <div className="product-image-placeholder">S</div>
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" />
+                  ) : (
+                    <div className="product-image-placeholder">S</div>
+                  )}
                 </div>
 
                 <div className="product-content">
                   <div>
                     <h2>{product.name}</h2>
-                    <p>{product.description}</p>
+                    <p>{product.description || "Product details available on order."}</p>
                   </div>
 
                   <div className="product-footer">
@@ -158,6 +176,10 @@ export default function ProductCatalog() {
               </article>
             ))}
           </div>
+        )}
+
+        {products.length > 0 && visibleProducts.length === 0 && (
+          <div className="catalog-status">No products match “{searchTerm}”.</div>
         )}
       </div>
     </section>
