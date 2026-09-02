@@ -46,6 +46,8 @@ const createDatabase = () => {
         ],
       }),
       findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     cartItem: {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -60,6 +62,8 @@ const createDatabase = () => {
     ),
     order: {
       findMany: transaction.order.findMany,
+      findFirst: transaction.order.findFirst,
+      updateMany: transaction.order.updateMany,
     },
   };
 
@@ -116,6 +120,32 @@ const getOrdersHandler = (
   }
 
   return getOrdersHandler.handle;
+};
+
+const getCancelOrderHandler = (
+  database: ReturnType<typeof createDatabase>["database"],
+) => {
+  const router = createOrdersRouter({
+    database: database as never,
+    requireAuthentication,
+  });
+
+  const route = router.stack.find((layer) => layer.route?.path === "/:orderId");
+
+  if (route?.route === undefined) {
+    throw new Error("DELETE /:orderId route not found.");
+  }
+
+  const [authenticationHandler, cancelOrderHandler] = route.route.stack;
+
+  if (
+    authenticationHandler?.handle !== requireAuthentication ||
+    cancelOrderHandler?.handle === undefined
+  ) {
+    throw new Error("DELETE /:orderId does not require authentication.");
+  }
+
+  return cancelOrderHandler.handle;
 };
 
 describe("POST /api/orders handler", () => {
@@ -601,5 +631,100 @@ describe("GET /api/orders handler", () => {
     );
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith([]);
+  });
+});
+
+describe("DELETE /api/orders/:orderId handler", () => {
+  const orderId = 70n;
+  const requestFor = (id = orderId.toString()) =>
+    ({ params: { orderId: id } }) as unknown as Request;
+
+  it("rejects unauthenticated cancellation without querying orders", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse();
+
+    await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+
+    expect(transaction.order.findFirst).not.toHaveBeenCalled();
+    expect(transaction.order.updateMany).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+  });
+
+  it("rejects malformed order IDs without querying orders", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(7n);
+
+    await getCancelOrderHandler(database)(requestFor("not-an-id"), response, vi.fn());
+
+    expect(transaction.order.findFirst).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({ message: "Invalid order ID." });
+  });
+
+  it.each([ORDER_STATUSES[0], ORDER_STATUSES[1]])(
+    "cancels an owned %s order and preserves its history",
+    async (currentStatus) => {
+      const { database, transaction } = createDatabase();
+      transaction.order.findFirst.mockResolvedValueOnce({ id: orderId, status: currentStatus });
+      const response = createResponse(7n);
+
+      await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+
+      expect(transaction.order.findFirst).toHaveBeenCalledWith({
+        where: { id: orderId, customerId: 7n },
+        select: { id: true, status: true },
+      });
+      expect(transaction.order.updateMany).toHaveBeenCalledWith({
+        where: { id: orderId, customerId: 7n },
+        data: { status: ORDER_STATUSES[5], updatedAt: expect.any(Date) },
+      });
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith({ id: orderId.toString(), status: ORDER_STATUSES[5] });
+    },
+  );
+
+  it.each([ORDER_STATUSES[2], ORDER_STATUSES[3], ORDER_STATUSES[4], ORDER_STATUSES[5]])(
+    "rejects cancellation of a %s order",
+    async (currentStatus) => {
+      const { database, transaction } = createDatabase();
+      transaction.order.findFirst.mockResolvedValueOnce({ id: orderId, status: currentStatus });
+      const response = createResponse(7n);
+
+      await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+
+      expect(transaction.order.updateMany).not.toHaveBeenCalled();
+      expect(response.status).toHaveBeenCalledWith(409);
+      expect(response.json).toHaveBeenCalledWith({
+        message: `Invalid order status transition: ${currentStatus} -> ${ORDER_STATUSES[5]}`,
+      });
+    },
+  );
+
+  it("does not reveal or cancel another customer's order", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(7n);
+
+    await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+
+    expect(transaction.order.findFirst).toHaveBeenCalledWith({
+      where: { id: orderId, customerId: 7n },
+      select: { id: true, status: true },
+    });
+    expect(transaction.order.updateMany).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(404);
+    expect(response.json).toHaveBeenCalledWith({ message: "Order not found." });
+  });
+
+  it("passes unexpected database errors to the shared error handler", async () => {
+    const { database, transaction } = createDatabase();
+    const failure = new Error("database unavailable");
+    transaction.order.findFirst.mockRejectedValueOnce(failure);
+    const response = createResponse(7n);
+    const next = vi.fn();
+
+    await getCancelOrderHandler(database)(requestFor(), response, next);
+
+    expect(next).toHaveBeenCalledWith(failure);
   });
 });
