@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { INITIAL_ORDER_STATUS } from "../order/orderStatus.js";
 import {
   Router,
   type Request,
@@ -132,7 +133,7 @@ export function createOrdersRouter({
         const createdOrder = await transaction.order.create({
           data: {
             customerId,
-            status: "PENDING",
+            status: INITIAL_ORDER_STATUS,
             subtotal,
             createdAt: now,
             updatedAt: now,
