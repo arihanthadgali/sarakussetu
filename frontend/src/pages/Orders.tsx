@@ -17,6 +17,22 @@ function formatDate(value: string): string {
   });
 }
 
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatStatus(status: string): string {
+  return status
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function getItemLabel(order: Order): string {
   const count = order.items.reduce(
     (total: number, item) => total + item.quantity,
@@ -260,29 +276,39 @@ export default function Orders() {
         {!isLoading && !error && orders.length > 0 && (
           <div className="orders-list">
             {orders.map((order) => (
-              <article className="order-card" key={order.id}>
+              <article
+                className={`order-card order-card-${order.status.toLowerCase()}`}
+                key={order.id}
+              >
                 <div className="order-card-top">
                   <div>
-                    <span className="order-label">ORDER</span>
+                    <span className="order-label">ORDER NUMBER</span>
                     <h2>#{order.id}</h2>
                   </div>
 
                   <span
                     className={`order-status order-status-${order.status.toLowerCase()}`}
                   >
-                    {getStatusLabel(order.status)}
+                    {formatStatus(order.status)}
                   </span>
                 </div>
 
                 <div className="order-card-meta">
-                  <span>{formatDate(order.createdAt)}</span>
-                  <span>•</span>
-                  <span>{getItemLabel(order)}</span>
+                  <div>
+                    <small>PLACED</small>
+                    <time dateTime={order.createdAt}>
+                      {formatDateTime(order.createdAt)}
+                    </time>
+                  </div>
+                  <div>
+                    <small>ITEMS</small>
+                    <span>{getItemLabel(order)}</span>
+                  </div>
                 </div>
 
                 <div className="order-card-bottom">
                   <div>
-                    <small>SUBTOTAL</small>
+                    <small>ORDER SUBTOTAL</small>
                     <strong>
                       ₹{order.subtotal.toFixed(2)}
                     </strong>
