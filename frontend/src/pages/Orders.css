@@ -581,3 +581,62 @@
     font-size: 23px;
   }
 }
+.order-actions {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 20px;
+}
+
+.order-actions button {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-edit-button {
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.order-edit-button:hover:not(:disabled) {
+  background: var(--green-deep);
+}
+
+.order-cancel-button {
+  border: 1px solid #dfb4a8;
+  background: #fff5f1;
+  color: var(--orange);
+}
+
+.order-cancel-button:hover:not(:disabled) {
+  background: #f8e1db;
+}
+
+.order-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.order-action-error {
+  margin: 0 0 18px;
+  padding: 11px 13px;
+  border: 1px solid #dfb4a8;
+  border-radius: 9px;
+  background: #fff5f1;
+  color: var(--orange);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .order-actions {
+    flex-direction: column;
+  }
+
+  .order-actions button {
+    width: 100%;
+  }
+}

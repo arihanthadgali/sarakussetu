@@ -237,7 +237,65 @@ export function createOrdersRouter({
       next(error);
     }
   };
+  const getOrderDetails = async (
+    request: Request<{ orderId: string }>,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
 
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { orderId: orderIdParam } = request.params;
+
+    if (!/^\d+$/.test(orderIdParam)) {
+      response.status(400).json({ message: "Invalid order ID." });
+      return;
+    }
+
+    const orderId = BigInt(orderIdParam);
+
+    try {
+      const order = await database.order.findFirst({
+        where: {
+          id: orderId,
+          customerId,
+        },
+        select: {
+          id: true,
+          status: true,
+          subtotal: true,
+          createdAt: true,
+          items: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              productId: true,
+              productName: true,
+              quantity: true,
+              unitPrice: true,
+              lineTotal: true,
+            },
+          },
+        },
+      });
+
+      if (order === null) {
+        response.status(404).json({ message: "Order not found." });
+        return;
+      }
+
+      response.status(200).json({
+        ...serializeOrder(order),
+        createdAt: order.createdAt.toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
   const cancelOrder = async (
     request: Request<{ orderId: string }>,
     response: Response,
@@ -311,6 +369,6 @@ export function createOrdersRouter({
   router.post("/", requireAuthentication, createOrder);
   router.get("/", requireAuthentication, getOrders);
   router.delete("/:orderId", requireAuthentication, cancelOrder);
-
+  router.get("/:orderId", requireAuthentication, getOrderDetails);
   return router;
 }

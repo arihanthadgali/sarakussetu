@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 
+import { useAuth } from "../auth/useAuth";
+import type { Product } from "../product/types";
 import { addToCart } from "../cart/cartApi";
+import {
+  addGuestCartItem,
+} from "../cart/guestCart";
 import { apiRequest } from "../api/client";
 import "./ProductCatalog.css";
 
-type Product = {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl?: string;
-};
 
 export default function ProductCatalog() {
+  const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,9 +25,9 @@ export default function ProductCatalog() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const response = await apiRequest<Product[]>("/api/products", {
-          authenticated: true,
-        });
+       const response = await apiRequest<Product[]>("/api/products", {
+        authenticated: false,
+     });
 
         setProducts(response);
       } catch {
@@ -41,21 +40,36 @@ export default function ProductCatalog() {
     loadProducts();
   }, []);
 
-  async function handleAddToCart(productId: number) {
+async function handleAddToCart(productId: number) {
   setAddingProductId(productId);
   setCartMessage(null);
 
   try {
-    const cartItem = await addToCart(productId);
+    const product = products.find((item) => item.id === productId);
 
-    const addedProduct = products.find(
-      (product) => product.id === productId,
-    );
+    if (!product) {
+      return;
+    }
 
-    setCartMessage({
-      productName: addedProduct?.name ?? cartItem.product.name,
-      quantity: cartItem.quantity,
-    });
+    if (isAuthenticated) {
+      const cartItem = await addToCart(productId);
+
+      setCartMessage({
+        productName: product.name,
+        quantity: cartItem.quantity,
+      });
+    } else {
+      const items = addGuestCartItem(product);
+
+      const addedItem = items.find(
+        (item) => item.product.id === productId,
+      );
+
+      setCartMessage({
+        productName: product.name,
+        quantity: addedItem?.quantity ?? 1,
+      });
+    }
   } catch {
     setCartMessage(null);
   } finally {

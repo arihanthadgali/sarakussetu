@@ -2,7 +2,6 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { Router, type RequestHandler } from 'express';
 
 import { prisma } from '../database/prisma.js';
-import { requireAuthentication } from '../middleware/authentication.js';
 
 const productSelection = {
   id: true,
@@ -49,6 +48,6 @@ export const createProductRouter = ({ database = prisma }: ProductRouterDependen
     }
   };
 
-  router.get('/', requireAuthentication, getActiveProducts);
-  return router;
+router.get('/', getActiveProducts);
+return router;
 };

@@ -2,7 +2,6 @@ import { Decimal } from '@prisma/client/runtime/library';
 import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import { requireAuthentication } from '../middleware/authentication.js';
 import { createProductRouter } from './products.js';
 
 const createResponse = () => {
@@ -25,11 +24,10 @@ const getProductsRoute = (database: ReturnType<typeof createDatabase>) => {
     throw new Error('GET / products route not found.');
   }
 
-  const [authenticationHandler, productHandler] = route.route.stack;
-  if (authenticationHandler?.handle !== requireAuthentication || productHandler?.handle === undefined) {
-    throw new Error('GET / products route does not require authentication.');
-  }
-
+const [productHandler] = route.route.stack;
+if (productHandler?.handle === undefined) {
+  throw new Error("GET / products route handler is missing.");
+}
   return productHandler.handle;
 };
 

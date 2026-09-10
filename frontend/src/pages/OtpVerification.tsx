@@ -2,15 +2,16 @@ import { useState, type FormEvent } from "react";
 
 import { verifyOtp } from "../auth/authApi";
 import { useAuth } from "../auth/useAuth";
-
 interface OtpVerificationProps {
   phoneNumber: string;
   onBack: () => void;
+  onVerified?: () => void | Promise<void>;
 }
 
 export function OtpVerification({
   phoneNumber,
   onBack,
+  onVerified,
 }: OtpVerificationProps) {
   const { login } = useAuth();
 
@@ -37,6 +38,10 @@ export function OtpVerification({
       }
 
       await login(response.accessToken);
+
+      if (onVerified) {
+        await onVerified();
+      }
     } catch {
       setError("Invalid or expired OTP. Please try again.");
     } finally {
@@ -93,7 +98,11 @@ export function OtpVerification({
           </p>
         )}
 
-        <button className="primary-button" type="submit" disabled={isLoading}>
+        <button
+          className="primary-button"
+          type="submit"
+          disabled={isLoading}
+        >
           {isLoading ? (
             <>
               <span className="button-spinner" />
