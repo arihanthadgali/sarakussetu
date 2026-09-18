@@ -1,10 +1,3 @@
-import { PrismaClient } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
-import {
-  INITIAL_ORDER_STATUS,
-  isOrderStatus,
-  transitionOrderStatus,
-} from "../order/orderStatus.js";
 import {
   Router,
   type Request,
@@ -12,49 +5,16 @@ import {
   type NextFunction,
 } from "express";
 
-const MAX_INT = 2_147_483_647;
+import type { PrismaClient } from "@prisma/client";
 
-type Database = PrismaClient;
+import { createOrderService } from "../services/orders/order-service.js";
+import { createOrderEditService } from "../services/orders/order-edit-service.js";
+import { createOrderStatusService } from "../services/orders/order-status-service.js";
 
-type CreateOrderResult = {
-  id: bigint;
-  status: string;
-  subtotal: Decimal;
-  items: Array<{
-    id: bigint;
-    productId: bigint;
-    productName: string;
-    quantity: number;
-    unitPrice: Decimal;
-    lineTotal: Decimal;
-  }>;
-};
-
-const productSelection = {
-  id: true,
-  name: true,
-  price: true,
-};
-
-function serializeDecimal(value: Decimal): number {
-  return value.toNumber();
-}
-
-function serializeOrder(order: CreateOrderResult) {
-  return {
-    id: order.id.toString(),
-    status: order.status,
-    subtotal: serializeDecimal(order.subtotal),
-    items: order.items.map((item) => ({
-      id: item.id.toString(),
-      productId: Number(item.productId),
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: serializeDecimal(item.unitPrice),
-      lineTotal: serializeDecimal(item.lineTotal),
-    })),
-  };
-}
+type Database = Pick<
+  PrismaClient,
+  "$transaction" | "order" | "cart" | "cartItem" | "product"
+>;
 
 export function createOrdersRouter({
   database,
@@ -67,8 +27,12 @@ export function createOrdersRouter({
     next: NextFunction,
   ) => unknown;
 }) {
+  const orderService = createOrderService({ database });
+  const orderEditService = createOrderEditService({ database });
+  const orderStatusService = createOrderStatusService({ database });
+
   const createOrder = async (
-    request: Request,
+    _request: Request,
     response: Response,
     next: NextFunction,
   ) => {
@@ -80,104 +44,9 @@ export function createOrdersRouter({
     }
 
     try {
-      const order = await database.$transaction(async (transaction) => {
-        const cart = await transaction.cart.findUnique({
-          where: { customerId },
-          select: {
-            id: true,
-            items: {
-              select: {
-                id: true,
-                quantity: true,
-                product: {
-                  select: productSelection,
-                },
-              },
-            },
-          },
-        });
+      const order = await orderService.createOrder(customerId);
 
-        if (cart === null || cart.items.length === 0) {
-          const error = new Error("Cart is empty.");
-          (error as Error & { statusCode?: number }).statusCode = 400;
-          throw error;
-        }
-
-        for (const item of cart.items) {
-          if (
-            !Number.isInteger(item.quantity) ||
-            item.quantity <= 0 ||
-            item.quantity > MAX_INT
-          ) {
-            const error = new Error("Cart contains an invalid quantity.");
-            (error as Error & { statusCode?: number }).statusCode = 400;
-            throw error;
-          }
-        }
-
-        const now = new Date();
-
-        let subtotal = new Decimal(0);
-
-        const orderItems = cart.items.map((item) => {
-          const unitPrice = item.product.price;
-          const lineTotal = unitPrice.mul(item.quantity);
-
-          subtotal = subtotal.add(lineTotal);
-
-          return {
-            productId: item.product.id,
-            productName: item.product.name,
-            quantity: item.quantity,
-            unitPrice,
-            lineTotal,
-          };
-        });
-
-        const createdOrder = await transaction.order.create({
-          data: {
-            customerId,
-            status: INITIAL_ORDER_STATUS,
-            subtotal,
-            createdAt: now,
-            updatedAt: now,
-            items: {
-              create: orderItems.map((item) => ({
-                productId: item.productId,
-                productName: item.productName,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                lineTotal: item.lineTotal,
-                createdAt: now,
-                updatedAt: now,
-              })),
-            },
-          },
-          select: {
-            id: true,
-            status: true,
-            subtotal: true,
-            items: {
-              select: {
-                id: true,
-                productId: true,
-                productName: true,
-                quantity: true,
-                unitPrice: true,
-                lineTotal: true,
-              },
-            },
-          },
-        });
-
-        await transaction.cartItem.deleteMany({
-          where: { cartId: cart.id },
-        });
-
-        return createdOrder;
-      });
-
-      response.status(201).json(serializeOrder(order));
+      response.status(201).json(order);
     } catch (error) {
       if (
         error instanceof Error &&
@@ -193,7 +62,7 @@ export function createOrdersRouter({
   };
 
   const getOrders = async (
-    request: Request,
+    _request: Request,
     response: Response,
     next: NextFunction,
   ) => {
@@ -205,38 +74,14 @@ export function createOrdersRouter({
     }
 
     try {
-      const orders = await database.order.findMany({
-        where: { customerId },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          status: true,
-          subtotal: true,
-          createdAt: true,
-          items: {
-            orderBy: { createdAt: "asc" },
-            select: {
-              id: true,
-              productId: true,
-              productName: true,
-              quantity: true,
-              unitPrice: true,
-              lineTotal: true,
-            },
-          },
-        },
-      });
+      const orders = await orderService.getOrders(customerId);
 
-      response.status(200).json(
-        orders.map((order) => ({
-          ...serializeOrder(order),
-          createdAt: order.createdAt.toISOString(),
-        })),
-      );
+      response.status(200).json(orders);
     } catch (error) {
       next(error);
     }
   };
+
   const getOrderDetails = async (
     request: Request<{ orderId: string }>,
     response: Response,
@@ -249,53 +94,142 @@ export function createOrdersRouter({
       return;
     }
 
-    const { orderId: orderIdParam } = request.params;
-
-    if (!/^\d+$/.test(orderIdParam)) {
-      response.status(400).json({ message: "Invalid order ID." });
-      return;
-    }
-
-    const orderId = BigInt(orderIdParam);
-
     try {
-      const order = await database.order.findFirst({
-        where: {
-          id: orderId,
-          customerId,
-        },
-        select: {
-          id: true,
-          status: true,
-          subtotal: true,
-          createdAt: true,
-          items: {
-            orderBy: { createdAt: "asc" },
-            select: {
-              id: true,
-              productId: true,
-              productName: true,
-              quantity: true,
-              unitPrice: true,
-              lineTotal: true,
-            },
-          },
-        },
-      });
+      const orderId = parseOrderId(request.params.orderId);
+
+      if (orderId === null) {
+        response.status(400).json({ message: "Invalid order ID." });
+        return;
+      }
+
+      const order = await orderService.getOrderDetails(
+        customerId,
+        orderId,
+      );
 
       if (order === null) {
         response.status(404).json({ message: "Order not found." });
         return;
       }
 
+      response.status(200).json(order);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const editOrder = async (
+    request: Request<{ orderId: string }>,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const orderId = parseOrderId(request.params.orderId);
+
+      if (orderId === null) {
+        response.status(400).json({ message: "Invalid order ID." });
+        return;
+      }
+
+      const result = await orderEditService.editOrder(
+        customerId,
+        orderId,
+      );
+
+      if (result.type === "not_found") {
+        response.status(404).json({ message: "Order not found." });
+        return;
+      }
+
+      if (result.type === "not_editable") {
+        response.status(409).json({
+          message: `Order cannot be edited after it reaches ${result.status}.`,
+        });
+        return;
+      }
+
       response.status(200).json({
-        ...serializeOrder(order),
-        createdAt: order.createdAt.toISOString(),
+        message: "Order moved back to cart for editing.",
+        cartId: result.cartId.toString(),
       });
     } catch (error) {
       next(error);
     }
   };
+
+  const updateOrderStatus = async (
+    request: Request<
+      { orderId: string },
+      unknown,
+      { status: string }
+    >,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    const customerId = response.locals.customerId as bigint | undefined;
+
+    if (customerId === undefined) {
+      response.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const orderId = parseOrderId(request.params.orderId);
+
+      if (orderId === null) {
+        response.status(400).json({ message: "Invalid order ID." });
+        return;
+      }
+
+      const result = await orderStatusService.updateOrderStatus(
+        customerId,
+        orderId,
+        request.body?.status,
+      );
+
+      if (result.type === "not_found") {
+        response.status(404).json({ message: "Order not found." });
+        return;
+      }
+
+      if (result.type === "invalid_status") {
+        response.status(400).json({ message: "Invalid order status." });
+        return;
+      }
+
+      if (result.type === "invalid_current_status") {
+        next(
+          new Error(
+            `Invalid current order status: ${result.status}`,
+          ),
+        );
+        return;
+      }
+
+      if (result.type === "invalid_transition") {
+        response.status(409).json({
+          message: result.message,
+        });
+        return;
+      }
+
+      response.status(200).json({
+        id: result.id.toString(),
+        status: result.status,
+        updatedAt: result.updatedAt.toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   const cancelOrder = async (
     request: Request<{ orderId: string }>,
     response: Response,
@@ -308,57 +242,44 @@ export function createOrdersRouter({
       return;
     }
 
-    const { orderId: orderIdParam } = request.params;
-
-    if (!/^\d+$/.test(orderIdParam)) {
-      response.status(400).json({ message: "Invalid order ID." });
-      return;
-    }
-
-    const orderId = BigInt(orderIdParam);
-
     try {
-      const order = await database.order.findFirst({
-        where: { id: orderId, customerId },
-        select: { id: true, status: true },
-      });
+      const orderId = parseOrderId(request.params.orderId);
 
-      if (order === null) {
+      if (orderId === null) {
+        response.status(400).json({ message: "Invalid order ID." });
+        return;
+      }
+
+      const result = await orderStatusService.cancelOrder(
+        customerId,
+        orderId,
+      );
+
+      if (result.type === "not_found") {
         response.status(404).json({ message: "Order not found." });
         return;
       }
 
-      if (!isOrderStatus(order.status)) {
-        next(new Error(`Invalid current order status: ${order.status}`));
+      if (result.type === "invalid_status") {
+        next(
+          new Error(
+            `Invalid current order status: ${result.status}`,
+          ),
+        );
         return;
       }
 
-      let status: string;
-
-      try {
-        status = transitionOrderStatus(order.status, "CANCELLED");
-      } catch (error) {
+      if (result.type === "invalid_transition") {
         response.status(409).json({
-          message:
-            error instanceof Error
-              ? error.message
-              : "Order cancellation is not allowed.",
+          message: result.message,
         });
         return;
       }
 
-      const updatedAt = new Date();
-      const updateResult = await database.order.updateMany({
-        where: { id: orderId, customerId },
-        data: { status, updatedAt },
+      response.status(200).json({
+        id: result.id.toString(),
+        status: result.status,
       });
-
-      if (updateResult.count === 0) {
-        response.status(404).json({ message: "Order not found." });
-        return;
-      }
-
-      response.status(200).json({ id: order.id.toString(), status });
     } catch (error) {
       next(error);
     }
@@ -367,8 +288,40 @@ export function createOrdersRouter({
   const router = Router();
 
   router.post("/", requireAuthentication, createOrder);
+
   router.get("/", requireAuthentication, getOrders);
-  router.delete("/:orderId", requireAuthentication, cancelOrder);
-  router.get("/:orderId", requireAuthentication, getOrderDetails);
+
+  router.get(
+    "/:orderId",
+    requireAuthentication,
+    getOrderDetails,
+  );
+
+  router.patch(
+    "/:orderId/status",
+    requireAuthentication,
+    updateOrderStatus,
+  );
+
+  router.post(
+    "/:orderId/edit",
+    requireAuthentication,
+    editOrder,
+  );
+
+  router.delete(
+    "/:orderId",
+    requireAuthentication,
+    cancelOrder,
+  );
+
   return router;
+}
+
+function parseOrderId(value: string): bigint | null {
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
+  return BigInt(value);
 }

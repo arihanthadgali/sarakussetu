@@ -12,6 +12,7 @@ datasource db {
 model Customer {
   id               BigInt            @id @default(autoincrement()) @db.BigInt
   phoneNumber      String            @unique(map: "uk_customers_phone_number") @map("phone_number") @db.VarChar(20)
+  role             String            @default("RETAILER") @db.VarChar(20)
   createdAt        DateTime          @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime          @map("updated_at") @db.Timestamp(6)
   otpVerifications OtpVerification[]
@@ -62,20 +63,25 @@ model CartItem {
   @@index([productId], map: "idx_cart_items_product_id")
   @@map("cart_items")
 }
-model Order {
-  id         BigInt      @id @default(autoincrement()) @db.BigInt
-  customerId BigInt      @map("customer_id") @db.BigInt
-  status     String      @db.VarChar(30)
-  subtotal   Decimal     @db.Decimal(10, 2)
-  createdAt  DateTime    @map("created_at") @db.Timestamp(6)
-  updatedAt  DateTime    @map("updated_at") @db.Timestamp(6)
 
-  customer   Customer    @relation(fields: [customerId], references: [id], map: "fk_orders_customer")
+model Order {
+  id           BigInt     @id @default(autoincrement()) @db.BigInt
+  customerId   BigInt     @map("customer_id") @db.BigInt
+  wholesalerId BigInt?    @map("wholesaler_id") @db.BigInt
+  status       String     @db.VarChar(30)
+  subtotal     Decimal    @db.Decimal(10, 2)
+  createdAt    DateTime   @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime   @map("updated_at") @db.Timestamp(6)
+
+  customer   Customer   @relation(fields: [customerId], references: [id], map: "fk_orders_customer")
+  wholesaler Wholesaler? @relation(fields: [wholesalerId], references: [id], map: "fk_orders_wholesaler")
   items      OrderItem[]
 
   @@index([customerId], map: "idx_orders_customer_id")
+  @@index([wholesalerId], map: "idx_orders_wholesaler_id")
   @@map("orders")
 }
+
 model OrderItem {
   id          BigInt   @id @default(autoincrement()) @db.BigInt
   orderId     BigInt   @map("order_id") @db.BigInt
@@ -87,24 +93,58 @@ model OrderItem {
   createdAt   DateTime @map("created_at") @db.Timestamp(6)
   updatedAt   DateTime @map("updated_at") @db.Timestamp(6)
 
-  order       Order    @relation(fields: [orderId], references: [id], map: "fk_order_items_order")
-  product     Product  @relation(fields: [productId], references: [id], map: "fk_order_items_product")
+  order   Order   @relation(fields: [orderId], references: [id], map: "fk_order_items_order")
+  product Product @relation(fields: [productId], references: [id], map: "fk_order_items_product")
 
   @@index([orderId], map: "idx_order_items_order_id")
   @@index([productId], map: "idx_order_items_product_id")
   @@map("order_items")
 }
+
 model Product {
-  id          BigInt   @id @default(autoincrement()) @db.BigInt
-  name        String   @db.VarChar(255)
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  imageUrl    String?  @map("image_url") @db.VarChar(500)
-  active      Boolean  @default(true)
-  createdAt   DateTime @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime @map("updated_at") @db.Timestamp(6)
+  id          BigInt      @id @default(autoincrement()) @db.BigInt
+  name        String      @db.VarChar(255)
+  description String?     @db.Text
+  price       Decimal     @db.Decimal(10, 2)
+  imageUrl    String?     @map("image_url") @db.VarChar(500)
+  active      Boolean     @default(true)
+  createdAt   DateTime    @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime    @map("updated_at") @db.Timestamp(6)
   cartItems   CartItem[]
   orderItems  OrderItem[]
 
   @@map("products")
+}
+
+model Wholesaler {
+  id               BigInt                      @id @default(autoincrement()) @db.BigInt
+  phoneNumber      String                      @unique(map: "uk_wholesalers_phone_number") @map("phone_number") @db.VarChar(20)
+  businessName     String                      @map("business_name") @db.VarChar(255)
+  ownerName        String                      @map("owner_name") @db.VarChar(255)
+  address          String                      @db.Text
+  city             String                      @db.VarChar(100)
+  pincode          String                      @db.VarChar(10)
+  createdAt        DateTime                    @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime                    @map("updated_at") @db.Timestamp(6)
+  otpVerifications WholesalerOtpVerification[]
+  orders           Order[]
+
+  @@map("wholesalers")
+}
+
+model WholesalerOtpVerification {
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  wholesalerId BigInt?  @map("wholesaler_id") @db.BigInt
+  phoneNumber  String   @map("phone_number") @db.VarChar(20)
+  otpHash      String   @map("otp_hash") @db.VarChar(100)
+  expiresAt    DateTime @map("expires_at") @db.Timestamp(6)
+  verified     Boolean  @default(false)
+  attemptCount Int      @default(0) @map("attempt_count")
+  createdAt    DateTime @map("created_at") @db.Timestamp(6)
+
+  wholesaler Wholesaler? @relation(fields: [wholesalerId], references: [id], map: "fk_wholesaler_otp_wholesaler")
+
+  @@index([phoneNumber, verified, expiresAt], map: "idx_wholesaler_otp_phone_verified_expiry")
+  @@index([wholesalerId], map: "idx_wholesaler_otp_wholesaler_id")
+  @@map("wholesaler_otp_verifications")
 }

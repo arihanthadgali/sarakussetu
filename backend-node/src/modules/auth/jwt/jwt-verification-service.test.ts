@@ -13,13 +13,19 @@ describe('verifyAccessToken', () => {
     expect(payload.exp).toBeTypeOf('number');
     expect(payload.iat).toBeTypeOf('number');
   });
+it("rejects a tampered token", async () => {
+  const token = await createAccessToken(3n);
+  const [header, payload, signature] = token.split(".");
 
-  it('rejects a tampered token', async () => {
-    const token = await createAccessToken(3n);
-    const tamperedToken = `${token.slice(0, -1)}x`;
+  if (signature === undefined || signature.length === 0) {
+    throw new Error("Generated token does not contain a signature.");
+  }
 
-    await expect(verifyAccessToken(tamperedToken)).rejects.toThrow();
-  });
+  const tamperedSignature = `${signature[0] === "a" ? "b" : "a"}${signature.slice(1)}`;
+  const tamperedToken = `${header}.${payload}.${tamperedSignature}`;
+
+  await expect(verifyAccessToken(tamperedToken)).rejects.toThrow();
+});
 
   it('rejects a malformed token', async () => {
     await expect(verifyAccessToken('not-a-jwt')).rejects.toThrow();

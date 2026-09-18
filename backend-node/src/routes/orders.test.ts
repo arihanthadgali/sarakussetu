@@ -104,7 +104,9 @@ const getOrdersHandler = (
     requireAuthentication,
   });
 
-  const route = router.stack.filter((layer) => layer.route?.path === "/")[1];
+  const route = router.stack.filter(
+    (layer) => layer.route?.path === "/",
+  )[1];
 
   if (route?.route === undefined) {
     throw new Error("GET / route not found.");
@@ -122,30 +124,86 @@ const getOrdersHandler = (
   return getOrdersHandler.handle;
 };
 
+const getUpdateOrderStatusHandler = (
+  database: ReturnType<typeof createDatabase>["database"],
+) => {
+  const router = createOrdersRouter({
+    database: database as never,
+    requireAuthentication: (_request, response, next) => {
+      response.locals.customerId = 7n;
+      next();
+    },
+  });
+
+  const route = router.stack.find((layer) => {
+    if (layer.route?.path !== "/:orderId/status") {
+      return false;
+    }
+
+    const routeDefinition = layer.route as {
+      methods?: Record<string, boolean>;
+    };
+
+    return routeDefinition.methods?.patch === true;
+  });
+
+  if (route?.route === undefined) {
+    throw new Error(
+      "PATCH /api/orders/:orderId/status route not found.",
+    );
+  }
+
+  const handler =
+    route.route.stack[route.route.stack.length - 1]?.handle;
+
+  if (handler === undefined) {
+    throw new Error(
+      "PATCH /api/orders/:orderId/status handler not found.",
+    );
+  }
+
+  return handler;
+};
+
 const getCancelOrderHandler = (
   database: ReturnType<typeof createDatabase>["database"],
 ) => {
   const router = createOrdersRouter({
     database: database as never,
-    requireAuthentication,
+    requireAuthentication: (_request, response, next) => {
+      response.locals.customerId = 7n;
+      next();
+    },
   });
 
-  const route = router.stack.find((layer) => layer.route?.path === "/:orderId");
+  const route = router.stack.find((layer) => {
+    if (layer.route?.path !== "/:orderId") {
+      return false;
+    }
+
+    const routeDefinition = layer.route as {
+      methods?: Record<string, boolean>;
+    };
+
+    return routeDefinition.methods?.delete === true;
+  });
 
   if (route?.route === undefined) {
-    throw new Error("DELETE /:orderId route not found.");
+    throw new Error(
+      "DELETE /api/orders/:orderId route not found.",
+    );
   }
 
-  const [authenticationHandler, cancelOrderHandler] = route.route.stack;
+  const handler =
+    route.route.stack[route.route.stack.length - 1]?.handle;
 
-  if (
-    authenticationHandler?.handle !== requireAuthentication ||
-    cancelOrderHandler?.handle === undefined
-  ) {
-    throw new Error("DELETE /:orderId does not require authentication.");
+  if (handler === undefined) {
+    throw new Error(
+      "DELETE /api/orders/:orderId handler not found.",
+    );
   }
 
-  return cancelOrderHandler.handle;
+  return handler;
 };
 
 describe("POST /api/orders handler", () => {
@@ -504,10 +562,10 @@ describe("POST /api/orders handler", () => {
     );
 
     const createOrderCall =
-  transaction.order.create.mock.invocationCallOrder[0];
+      transaction.order.create.mock.invocationCallOrder[0];
 
     const deleteCartCall =
-  transaction.cartItem.deleteMany.mock.invocationCallOrder[0];
+      transaction.cartItem.deleteMany.mock.invocationCallOrder[0];
 
     expect(createOrderCall).toBeDefined();
     expect(deleteCartCall).toBeDefined();
@@ -539,11 +597,17 @@ describe("GET /api/orders handler", () => {
     const { database, transaction } = createDatabase();
     const response = createResponse();
 
-    await getOrdersHandler(database)({} as Request, response, vi.fn());
+    await getOrdersHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findMany).not.toHaveBeenCalled();
     expect(response.status).toHaveBeenCalledWith(401);
-    expect(response.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(response.json).toHaveBeenCalledWith({
+      error: "Unauthorized",
+    });
   });
 
   it("returns the authenticated customer's orders with their current statuses and existing fields", async () => {
@@ -577,7 +641,12 @@ describe("GET /api/orders handler", () => {
     ]);
 
     const response = createResponse(7n);
-    await getOrdersHandler(database)({} as Request, response, vi.fn());
+
+    await getOrdersHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findMany).toHaveBeenCalledWith({
       where: { customerId: 7n },
@@ -602,13 +671,23 @@ describe("GET /api/orders handler", () => {
     });
 
     expect(response.status).toHaveBeenCalledWith(200);
+
     expect(response.json).toHaveBeenCalledWith([
       {
         id: "41",
         status: ORDER_STATUSES[3],
         subtotal: 998,
         createdAt: createdAt.toISOString(),
-        items: [{ id: "51", productId: 12, productName: "Milk Chocolate Box", quantity: 2, unitPrice: 499, lineTotal: 998 }],
+        items: [
+          {
+            id: "51",
+            productId: 12,
+            productName: "Milk Chocolate Box",
+            quantity: 2,
+            unitPrice: 499,
+            lineTotal: 998,
+          },
+        ],
       },
       {
         id: "42",
@@ -624,18 +703,221 @@ describe("GET /api/orders handler", () => {
     const { database, transaction } = createDatabase();
     const response = createResponse(8n);
 
-    await getOrdersHandler(database)({} as Request, response, vi.fn());
+    await getOrdersHandler(database)(
+      {} as Request,
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { customerId: 8n } }),
+      expect.objectContaining({
+        where: { customerId: 8n },
+      }),
     );
+
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith([]);
   });
 });
 
+describe("PATCH /api/orders/:orderId/status handler", () => {
+  const orderId = 70n;
+
+  const requestFor = (
+    id = orderId.toString(),
+    status = "CONFIRMED",
+  ) =>
+    ({
+      params: { orderId: id },
+      body: { status },
+    }) as unknown as Request;
+
+  it("rejects requests without authenticated customer context", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse();
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.findFirst).not.toHaveBeenCalled();
+    expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({
+      error: "Unauthorized",
+    });
+  });
+
+  it("rejects malformed order IDs without querying orders", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(7n);
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor("not-an-id"),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.findFirst).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Invalid order ID.",
+    });
+  });
+
+  it("rejects invalid order statuses without querying orders", async () => {
+    const { database, transaction } = createDatabase();
+    const response = createResponse(7n);
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(orderId.toString(), "INVALID_STATUS"),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.findFirst).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Invalid order status.",
+    });
+  });
+
+  it("returns 404 when the order does not belong to the authenticated customer", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.order.findFirst.mockResolvedValueOnce(null);
+
+    const response = createResponse(7n);
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: orderId,
+        customerId: 7n,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(404);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Order not found.",
+    });
+  });
+
+  it("rejects an invalid status transition", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.order.findFirst.mockResolvedValueOnce({
+      id: orderId,
+      status: "PENDING",
+    });
+
+    const response = createResponse(7n);
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(orderId.toString(), "PROCESSING"),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(response.json).toHaveBeenCalledWith({
+      message:
+        "Invalid order status transition: PENDING -> PROCESSING",
+    });
+  });
+
+  it("updates a valid order status for the authenticated customer", async () => {
+    const { database, transaction } = createDatabase();
+
+    transaction.order.findFirst.mockResolvedValueOnce({
+      id: orderId,
+      status: "PENDING",
+    });
+
+    transaction.order.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
+
+    const response = createResponse(7n);
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(orderId.toString(), "CONFIRMED"),
+      response,
+      vi.fn(),
+    );
+
+    expect(transaction.order.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: orderId,
+        customerId: 7n,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    expect(transaction.order.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: orderId,
+        customerId: 7n,
+      },
+      data: {
+        status: "CONFIRMED",
+        updatedAt: expect.any(Date),
+      },
+    });
+
+    expect(response.status).toHaveBeenCalledWith(200);
+
+    expect(response.json).toHaveBeenCalledWith({
+      id: orderId.toString(),
+      status: "CONFIRMED",
+      updatedAt: expect.any(String),
+    });
+  });
+
+  it("passes unexpected database errors to the shared error handler", async () => {
+    const { database, transaction } = createDatabase();
+
+    const failure = new Error("database unavailable");
+
+    transaction.order.findFirst.mockRejectedValueOnce(failure);
+
+    const response = createResponse(7n);
+    const next = vi.fn();
+
+    await getUpdateOrderStatusHandler(database)(
+      requestFor(),
+      response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(failure);
+  });
+});
+
 describe("DELETE /api/orders/:orderId handler", () => {
   const orderId = 70n;
+
   const requestFor = (id = orderId.toString()) =>
     ({ params: { orderId: id } }) as unknown as Request;
 
@@ -643,58 +925,115 @@ describe("DELETE /api/orders/:orderId handler", () => {
     const { database, transaction } = createDatabase();
     const response = createResponse();
 
-    await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+    await getCancelOrderHandler(database)(
+      requestFor(),
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findFirst).not.toHaveBeenCalled();
     expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
     expect(response.status).toHaveBeenCalledWith(401);
-    expect(response.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(response.json).toHaveBeenCalledWith({
+      error: "Unauthorized",
+    });
   });
 
   it("rejects malformed order IDs without querying orders", async () => {
     const { database, transaction } = createDatabase();
     const response = createResponse(7n);
 
-    await getCancelOrderHandler(database)(requestFor("not-an-id"), response, vi.fn());
+    await getCancelOrderHandler(database)(
+      requestFor("not-an-id"),
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findFirst).not.toHaveBeenCalled();
+
     expect(response.status).toHaveBeenCalledWith(400);
-    expect(response.json).toHaveBeenCalledWith({ message: "Invalid order ID." });
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Invalid order ID.",
+    });
   });
 
   it.each([ORDER_STATUSES[0], ORDER_STATUSES[1]])(
     "cancels an owned %s order and preserves its history",
     async (currentStatus) => {
       const { database, transaction } = createDatabase();
-      transaction.order.findFirst.mockResolvedValueOnce({ id: orderId, status: currentStatus });
+
+      transaction.order.findFirst.mockResolvedValueOnce({
+        id: orderId,
+        status: currentStatus,
+      });
+
       const response = createResponse(7n);
 
-      await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+      await getCancelOrderHandler(database)(
+        requestFor(),
+        response,
+        vi.fn(),
+      );
 
       expect(transaction.order.findFirst).toHaveBeenCalledWith({
-        where: { id: orderId, customerId: 7n },
-        select: { id: true, status: true },
+        where: {
+          id: orderId,
+          customerId: 7n,
+        },
+        select: {
+          id: true,
+          status: true,
+        },
       });
+
       expect(transaction.order.updateMany).toHaveBeenCalledWith({
-        where: { id: orderId, customerId: 7n },
-        data: { status: ORDER_STATUSES[5], updatedAt: expect.any(Date) },
+        where: {
+          id: orderId,
+          customerId: 7n,
+        },
+        data: {
+          status: ORDER_STATUSES[5],
+          updatedAt: expect.any(Date),
+        },
       });
+
       expect(response.status).toHaveBeenCalledWith(200);
-      expect(response.json).toHaveBeenCalledWith({ id: orderId.toString(), status: ORDER_STATUSES[5] });
+
+      expect(response.json).toHaveBeenCalledWith({
+        id: orderId.toString(),
+        status: ORDER_STATUSES[5],
+      });
     },
   );
 
-  it.each([ORDER_STATUSES[2], ORDER_STATUSES[3], ORDER_STATUSES[4], ORDER_STATUSES[5]])(
+  it.each([
+    ORDER_STATUSES[2],
+    ORDER_STATUSES[3],
+    ORDER_STATUSES[4],
+    ORDER_STATUSES[5],
+  ])(
     "rejects cancellation of a %s order",
     async (currentStatus) => {
       const { database, transaction } = createDatabase();
-      transaction.order.findFirst.mockResolvedValueOnce({ id: orderId, status: currentStatus });
+
+      transaction.order.findFirst.mockResolvedValueOnce({
+        id: orderId,
+        status: currentStatus,
+      });
+
       const response = createResponse(7n);
 
-      await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+      await getCancelOrderHandler(database)(
+        requestFor(),
+        response,
+        vi.fn(),
+      );
 
       expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
       expect(response.status).toHaveBeenCalledWith(409);
+
       expect(response.json).toHaveBeenCalledWith({
         message: `Invalid order status transition: ${currentStatus} -> ${ORDER_STATUSES[5]}`,
       });
@@ -705,25 +1044,47 @@ describe("DELETE /api/orders/:orderId handler", () => {
     const { database, transaction } = createDatabase();
     const response = createResponse(7n);
 
-    await getCancelOrderHandler(database)(requestFor(), response, vi.fn());
+    await getCancelOrderHandler(database)(
+      requestFor(),
+      response,
+      vi.fn(),
+    );
 
     expect(transaction.order.findFirst).toHaveBeenCalledWith({
-      where: { id: orderId, customerId: 7n },
-      select: { id: true, status: true },
+      where: {
+        id: orderId,
+        customerId: 7n,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
     });
+
     expect(transaction.order.updateMany).not.toHaveBeenCalled();
+
     expect(response.status).toHaveBeenCalledWith(404);
-    expect(response.json).toHaveBeenCalledWith({ message: "Order not found." });
+
+    expect(response.json).toHaveBeenCalledWith({
+      message: "Order not found.",
+    });
   });
 
   it("passes unexpected database errors to the shared error handler", async () => {
     const { database, transaction } = createDatabase();
+
     const failure = new Error("database unavailable");
+
     transaction.order.findFirst.mockRejectedValueOnce(failure);
+
     const response = createResponse(7n);
     const next = vi.fn();
 
-    await getCancelOrderHandler(database)(requestFor(), response, next);
+    await getCancelOrderHandler(database)(
+      requestFor(),
+      response,
+      next,
+    );
 
     expect(next).toHaveBeenCalledWith(failure);
   });

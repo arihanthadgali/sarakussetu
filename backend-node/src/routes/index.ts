@@ -9,6 +9,9 @@ import { createProductRouter } from "./products.js";
 
 import { prisma } from "../database/prisma.js";
 import { requireAuthentication } from "../middleware/authentication.js";
+import { createWholesalerOrdersRouter } from "./wholesaler/orders.js";
+import { createWholesalerOrderStatusRouter } from "./wholesaler/order-status.js";
+import { createWholesalerAuthRouter } from "./wholesaler/auth.js";
 
 export const router = Router();
 
@@ -17,7 +20,22 @@ router.use("/api/auth/otp", createOtpRouter());
 router.use("/api/auth", createAuthenticatedCustomerRouter());
 router.use("/api/cart", createCartRouter());
 router.use("/api/products", createProductRouter());
-
+router.use(
+  "/api/wholesaler/orders",
+  createWholesalerOrdersRouter({
+    database: prisma,
+  }),
+);
+router.use(
+  "/api/wholesaler/auth",
+  createWholesalerAuthRouter(),
+);
+router.use(
+  "/api/wholesaler/orders",
+  createWholesalerOrderStatusRouter({
+    database: prisma,
+  }),
+);
 router.use(
   "/api/orders",
   createOrdersRouter({
