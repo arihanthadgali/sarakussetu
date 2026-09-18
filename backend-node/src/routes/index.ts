@@ -12,6 +12,8 @@ import { requireAuthentication } from "../middleware/authentication.js";
 import { createWholesalerOrdersRouter } from "./wholesaler/orders.js";
 import { createWholesalerOrderStatusRouter } from "./wholesaler/order-status.js";
 import { createWholesalerAuthRouter } from "./wholesaler/auth.js";
+import { createAdminOrdersRouter } from "./admin/orders.js";
+import { createAdminWholesalersRouter } from "./admin/wholesalers.js";
 
 export const router = Router();
 
@@ -20,6 +22,7 @@ router.use("/api/auth/otp", createOtpRouter());
 router.use("/api/auth", createAuthenticatedCustomerRouter());
 router.use("/api/cart", createCartRouter());
 router.use("/api/products", createProductRouter());
+
 router.use(
   "/api/wholesaler/orders",
   createWholesalerOrdersRouter({
@@ -36,6 +39,20 @@ router.use(
     database: prisma,
   }),
 );
+router.use(
+  "/api/admin/orders",
+  createAdminOrdersRouter({
+    database: prisma,
+  }),
+);
+
+router.use(
+  "/api/admin/wholesalers",
+  createAdminWholesalersRouter({
+    database: prisma,
+  }),
+);
+
 router.use(
   "/api/orders",
   createOrdersRouter({
