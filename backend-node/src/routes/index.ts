@@ -11,6 +11,7 @@ import { prisma } from "../database/prisma.js";
 import { requireAuthentication } from "../middleware/authentication.js";
 import { createWholesalerOrdersRouter } from "./wholesaler/orders.js";
 import { createWholesalerOrderStatusRouter } from "./wholesaler/order-status.js";
+import { createWholesalerInventoryRouter } from "./wholesaler/inventory.js";
 import { createWholesalerAuthRouter } from "./wholesaler/auth.js";
 import { createAdminOrdersRouter } from "./admin/orders.js";
 import { createAdminWholesalersRouter } from "./admin/wholesalers.js";
@@ -37,6 +38,12 @@ router.use(
 router.use(
   "/api/wholesaler/orders",
   createWholesalerOrderStatusRouter({
+    database: prisma,
+  }),
+);
+router.use(
+  "/api/wholesaler/inventory",
+  createWholesalerInventoryRouter({
     database: prisma,
   }),
 );

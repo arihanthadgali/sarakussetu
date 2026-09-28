@@ -6,6 +6,9 @@ import WholesalerDashboard from "./pages/WholesalerDashboard";
 import WholesalerLogin from "./pages/WholesalerLogin";
 import WholesalerOrderHistory from "./pages/WholesalerOrderHistory";
 import WholesalerOrders from "./pages/WholesalerOrders";
+import WholesalerProducts from "./pages/WholesalerProducts";
+import WholesalerInventory from "./pages/WholesalerInventory";
+import WholesalerRetailers from "./pages/WholesalerRetailers";
 import WholesalerSignup from "./pages/WholesalerSignup";
 import type { WholesalerPage } from "./components/WholesalerSidebar";
 
@@ -41,6 +44,33 @@ function App() {
     if (activePage === "history") {
       return (
         <WholesalerOrderHistory
+          onNavigate={setActivePage}
+          onLogout={logout}
+        />
+      );
+    }
+
+    if (activePage === "products") {
+      return (
+        <WholesalerProducts
+          onNavigate={setActivePage}
+          onLogout={logout}
+        />
+      );
+    }
+
+    if (activePage === "inventory") {
+      return (
+        <WholesalerInventory
+          onNavigate={setActivePage}
+          onLogout={logout}
+        />
+      );
+    }
+
+    if (activePage === "retailers") {
+      return (
+        <WholesalerRetailers
           onNavigate={setActivePage}
           onLogout={logout}
         />

@@ -44,19 +44,19 @@ const NAVIGATION_ITEMS: readonly NavigationItem[] = [
     id: "products",
     label: "Products",
     icon: "▤",
-    isAvailable: false,
+    isAvailable: true,
   },
   {
     id: "inventory",
     label: "Inventory",
     icon: "▦",
-    isAvailable: false,
+    isAvailable: true,
   },
   {
     id: "retailers",
     label: "Retailers",
     icon: "♙",
-    isAvailable: false,
+    isAvailable: true,
   },
   {
     id: "notifications",
