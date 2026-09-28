@@ -11,7 +11,15 @@ import {
 } from "../orders/orderApi";
 import type { OrderStatus, WholesalerOrder } from "../orders/types";
 
-type OrderFilter = "ALL" | OrderStatus;
+const ACTIVE_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PROCESSING",
+  "READY",
+] as const satisfies readonly OrderStatus[];
+
+type ActiveOrderStatus = (typeof ACTIVE_STATUSES)[number];
+type OrderFilter = "ALL" | ActiveOrderStatus;
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "New",
@@ -22,18 +30,25 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
-const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  PENDING: "CONFIRMED",
-  CONFIRMED: "PROCESSING",
-  PROCESSING: "READY",
-  READY: "COMPLETED",
-};
+interface StatusAction {
+  status: OrderStatus;
+  label: string;
+  tone?: "danger";
+}
 
-const NEXT_ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
-  PENDING: "Confirm",
-  CONFIRMED: "Start Processing",
-  PROCESSING: "Mark Ready",
-  READY: "Complete",
+const STATUS_ACTIONS: Record<OrderStatus, readonly StatusAction[]> = {
+  PENDING: [
+    { status: "CONFIRMED", label: "Confirm" },
+    { status: "CANCELLED", label: "Cancel", tone: "danger" },
+  ],
+  CONFIRMED: [
+    { status: "PROCESSING", label: "Start Processing" },
+    { status: "CANCELLED", label: "Cancel", tone: "danger" },
+  ],
+  PROCESSING: [{ status: "READY", label: "Mark Ready" }],
+  READY: [{ status: "COMPLETED", label: "Complete" }],
+  COMPLETED: [],
+  CANCELLED: [],
 };
 
 function formatAmount(amount: number) {
@@ -52,7 +67,7 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function getInitials(phoneNumber: string) {
+function getRetailerSuffix(phoneNumber: string) {
   return phoneNumber.slice(-2);
 }
 
@@ -68,9 +83,11 @@ function WholesalerOrders({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
+      setIsLoading(true);
       setError(null);
 
       const data = await getWholesalerOrders();
@@ -87,33 +104,42 @@ function WholesalerOrders({
     void loadOrders();
   }, [loadOrders]);
 
+  const activeOrders = useMemo(
+    () =>
+      orders.filter((order) =>
+        ACTIVE_STATUSES.includes(order.status as ActiveOrderStatus),
+      ),
+    [orders],
+  );
+
   const filteredOrders = useMemo(() => {
     if (filter === "ALL") {
-      return orders;
+      return activeOrders;
     }
 
-    return orders.filter((order) => order.status === filter);
-  }, [orders, filter]);
+    return activeOrders.filter((order) => order.status === filter);
+  }, [activeOrders, filter]);
 
   const counts = useMemo(() => {
     return {
-      all: orders.length,
-      pending: orders.filter((order) => order.status === "PENDING").length,
-      confirmed: orders.filter((order) => order.status === "CONFIRMED").length,
-      processing: orders.filter((order) => order.status === "PROCESSING").length,
-      ready: orders.filter((order) => order.status === "READY").length,
-      completed: orders.filter((order) => order.status === "COMPLETED").length,
-      cancelled: orders.filter((order) => order.status === "CANCELLED").length,
+      all: activeOrders.length,
+      pending: activeOrders.filter((order) => order.status === "PENDING").length,
+      confirmed: activeOrders.filter((order) => order.status === "CONFIRMED").length,
+      processing: activeOrders.filter((order) => order.status === "PROCESSING")
+        .length,
+      ready: activeOrders.filter((order) => order.status === "READY").length,
     };
-  }, [orders]);
+  }, [activeOrders]);
 
-  const handleStatusUpdate = async (order: WholesalerOrder) => {
-    const nextStatus = NEXT_STATUS[order.status];
+  const selectedOrder =
+    selectedOrderId === null
+      ? null
+      : orders.find((order) => order.id === selectedOrderId) ?? null;
 
-    if (nextStatus === undefined) {
-      return;
-    }
-
+  const handleStatusUpdate = async (
+    order: WholesalerOrder,
+    nextStatus: OrderStatus,
+  ) => {
     try {
       setUpdatingOrderId(order.id);
       setError(null);
@@ -154,7 +180,7 @@ function WholesalerOrders({
           <header className="orders-page-header">
             <div>
               <h1>Orders</h1>
-              <p>Manage retailer orders assigned to your business</p>
+              <p>Manage active retailer orders assigned to your business</p>
             </div>
 
             <button
@@ -233,27 +259,6 @@ function WholesalerOrders({
               <span>{counts.ready}</span>
             </button>
 
-            <button
-              className={
-                filter === "COMPLETED" ? "order-filter active" : "order-filter"
-              }
-              type="button"
-              onClick={() => setFilter("COMPLETED")}
-            >
-              Completed
-              <span>{counts.completed}</span>
-            </button>
-
-            <button
-              className={
-                filter === "CANCELLED" ? "order-filter active" : "order-filter"
-              }
-              type="button"
-              onClick={() => setFilter("CANCELLED")}
-            >
-              Cancelled
-              <span>{counts.cancelled}</span>
-            </button>
           </section>
 
           <section className="orders-list-card">
@@ -261,7 +266,7 @@ function WholesalerOrders({
               <div>
                 <h2>
                   {filter === "ALL"
-                    ? "All Orders"
+                    ? "Active Orders"
                     : STATUS_LABELS[filter]}
                 </h2>
 
@@ -292,14 +297,13 @@ function WholesalerOrders({
                       <th>Amount</th>
                       <th>Placed At</th>
                       <th>Status</th>
-                      <th>Action</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {filteredOrders.map((order) => {
-                      const nextStatus = NEXT_STATUS[order.status];
-                      const actionLabel = NEXT_ACTION_LABELS[order.status];
+                      const statusActions = STATUS_ACTIONS[order.status];
                       const isUpdating = updatingOrderId === order.id;
 
                       return (
@@ -314,7 +318,7 @@ function WholesalerOrders({
                             <div className="orders-page-retailer">
                               <strong>
                                 Retailer{" "}
-                                {getInitials(order.retailer.phoneNumber)}
+                                {getRetailerSuffix(order.retailer.phoneNumber)}
                               </strong>
 
                               <span>{order.retailer.phoneNumber}</span>
@@ -341,25 +345,33 @@ function WholesalerOrders({
                           </td>
 
                           <td>
-                            {nextStatus !== undefined &&
-                            actionLabel !== undefined ? (
+                            <div className="orders-actions">
                               <button
-                                className="orders-action-button"
+                                className="orders-details-button"
                                 type="button"
-                                disabled={isUpdating}
-                                onClick={() =>
-                                  void handleStatusUpdate(order)
-                                }
+                                onClick={() => setSelectedOrderId(order.id)}
                               >
-                                {isUpdating ? "Updating..." : actionLabel}
+                                Details
                               </button>
-                            ) : (
-                              <span className="orders-action-complete">
-                                {order.status === "COMPLETED"
-                                  ? "Completed"
-                                  : "—"}
-                              </span>
-                            )}
+
+                              {statusActions.map((action) => (
+                                <button
+                                  key={action.status}
+                                  className={`orders-action-button${
+                                    action.tone === "danger"
+                                      ? " orders-action-button-danger"
+                                      : ""
+                                  }`}
+                                  type="button"
+                                  disabled={isUpdating}
+                                  onClick={() =>
+                                    void handleStatusUpdate(order, action.status)
+                                  }
+                                >
+                                  {isUpdating ? "Updating..." : action.label}
+                                </button>
+                              ))}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -369,6 +381,85 @@ function WholesalerOrders({
               </div>
             )}
           </section>
+
+          {selectedOrder !== null && (
+            <div className="order-details-backdrop" role="presentation">
+              <section
+                aria-labelledby="order-details-title"
+                aria-modal="true"
+                className="order-details-dialog"
+                role="dialog"
+              >
+                <header className="order-details-header">
+                  <div>
+                    <p>Order details</p>
+                    <h2 id="order-details-title">#{selectedOrder.id}</h2>
+                  </div>
+
+                  <button
+                    aria-label="Close order details"
+                    className="order-details-close"
+                    type="button"
+                    onClick={() => setSelectedOrderId(null)}
+                  >
+                    ×
+                  </button>
+                </header>
+
+                <div className="order-details-summary">
+                  <div>
+                    <span>Retailer</span>
+                    <strong>
+                      Retailer{" "}
+                      {getRetailerSuffix(selectedOrder.retailer.phoneNumber)}
+                    </strong>
+                    <small>
+                      {selectedOrder.retailer.phoneNumber} · ID #
+                      {selectedOrder.retailer.id}
+                    </small>
+                  </div>
+
+                  <div>
+                    <span>Placed at</span>
+                    <strong>{formatDate(selectedOrder.createdAt)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Status</span>
+                    <strong>
+                      <span
+                        className={`orders-status orders-status-${selectedOrder.status.toLowerCase()}`}
+                      >
+                        {STATUS_LABELS[selectedOrder.status]}
+                      </span>
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="order-details-items">
+                  <h3>Ordered items</h3>
+
+                  {selectedOrder.items.map((item) => (
+                    <div className="order-details-item" key={item.id}>
+                      <div>
+                        <strong>{item.productName}</strong>
+                        <span>
+                          {item.quantity} × {formatAmount(item.unitPrice)}
+                        </span>
+                      </div>
+
+                      <strong>{formatAmount(item.lineTotal)}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <footer className="order-details-total">
+                  <span>Total ({selectedOrder.items.length} items)</span>
+                  <strong>{formatAmount(selectedOrder.subtotal)}</strong>
+                </footer>
+              </section>
+            </div>
+          )}
         </div>
       </main>
     </div>

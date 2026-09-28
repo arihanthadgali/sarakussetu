@@ -1,4 +1,12 @@
-export type WholesalerPage = "dashboard" | "orders" | "history";
+export type WholesalerPage =
+  | "dashboard"
+  | "orders"
+  | "history"
+  | "products"
+  | "inventory"
+  | "retailers"
+  | "notifications"
+  | "settings";
 
 interface WholesalerSidebarProps {
   activePage: WholesalerPage;
@@ -10,42 +18,57 @@ interface NavigationItem {
   id: WholesalerPage;
   label: string;
   icon: string;
+  isAvailable: boolean;
 }
 
-const NAVIGATION_ITEMS: NavigationItem[] = [
+const NAVIGATION_ITEMS: readonly NavigationItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
     icon: "⌂",
+    isAvailable: true,
   },
   {
     id: "orders",
     label: "Orders",
     icon: "▣",
+    isAvailable: true,
   },
   {
     id: "history",
     label: "Order History",
     icon: "◷",
+    isAvailable: true,
   },
-];
-
-const FUTURE_ITEMS = [
   {
-    label: "Products (Catalog)",
+    id: "products",
+    label: "Products",
     icon: "▤",
+    isAvailable: false,
   },
   {
+    id: "inventory",
+    label: "Inventory",
+    icon: "▦",
+    isAvailable: false,
+  },
+  {
+    id: "retailers",
     label: "Retailers",
     icon: "♙",
+    isAvailable: false,
   },
   {
+    id: "notifications",
     label: "Notifications",
     icon: "♧",
+    isAvailable: false,
   },
   {
-    label: "Profile",
+    id: "settings",
+    label: "Settings",
     icon: "⚙",
+    isAvailable: false,
   },
 ];
 
@@ -78,20 +101,9 @@ function WholesalerSidebar({
                 : "nav-item"
             }
             type="button"
+            disabled={!item.isAvailable}
+            title={item.isAvailable ? undefined : "Coming soon"}
             onClick={() => onNavigate(item.id)}
-          >
-            <span aria-hidden="true">{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
-
-        {FUTURE_ITEMS.map((item) => (
-          <button
-            key={item.label}
-            className="nav-item nav-item-disabled"
-            type="button"
-            disabled
-            title="Coming soon"
           >
             <span aria-hidden="true">{item.icon}</span>
             {item.label}

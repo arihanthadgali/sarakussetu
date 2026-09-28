@@ -3,7 +3,13 @@ export type AdminPage =
   | "orders"
   | "retailers"
   | "wholesalers"
-  | "products";
+  | "products"
+  | "delivery"
+  | "operations"
+  | "payments"
+  | "reports"
+  | "notifications"
+  | "settings";
 
 interface AdminSidebarProps {
   activePage: AdminPage;
@@ -11,41 +17,79 @@ interface AdminSidebarProps {
   onLogout: () => void;
 }
 
-const items: Array<{
-  page: AdminPage;
+interface NavigationItem {
+  id: AdminPage;
   label: string;
   icon: string;
-  enabled: boolean;
-}> = [
+  isAvailable: boolean;
+}
+
+const NAVIGATION_ITEMS: readonly NavigationItem[] = [
   {
-    page: "dashboard",
+    id: "dashboard",
     label: "Dashboard",
     icon: "⌂",
-    enabled: true,
+    isAvailable: true,
   },
   {
-    page: "orders",
+    id: "orders",
     label: "Orders",
     icon: "▤",
-    enabled: true,
+    isAvailable: true,
   },
   {
-    page: "retailers",
+    id: "retailers",
     label: "Retailers",
     icon: "♙",
-    enabled: false,
+    isAvailable: false,
   },
   {
-    page: "wholesalers",
+    id: "wholesalers",
     label: "Wholesalers",
     icon: "▥",
-    enabled: true,
+    isAvailable: true,
   },
   {
-    page: "products",
+    id: "products",
     label: "Products",
     icon: "▦",
-    enabled: false,
+    isAvailable: false,
+  },
+  {
+    id: "delivery",
+    label: "Delivery",
+    icon: "▣",
+    isAvailable: false,
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    icon: "◫",
+    isAvailable: false,
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    icon: "₹",
+    isAvailable: false,
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: "◷",
+    isAvailable: false,
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: "♧",
+    isAvailable: false,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: "⚙",
+    isAvailable: false,
   },
 ];
 
@@ -66,15 +110,16 @@ export default function AdminSidebar({
       </div>
 
       <nav className="sidebar-nav">
-        {items.map((item) => (
+        {NAVIGATION_ITEMS.map((item) => (
           <button
-            key={item.page}
+            key={item.id}
             type="button"
             className={`sidebar-item ${
-              activePage === item.page ? "active" : ""
-            } ${!item.enabled ? "disabled" : ""}`}
-            disabled={!item.enabled}
-            onClick={() => onNavigate(item.page)}
+              activePage === item.id ? "active" : ""
+            } ${!item.isAvailable ? "disabled" : ""}`}
+            disabled={!item.isAvailable}
+            title={item.isAvailable ? undefined : "Coming soon"}
+            onClick={() => onNavigate(item.id)}
           >
             <span>{item.icon}</span>
             {item.label}
