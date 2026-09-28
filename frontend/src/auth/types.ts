@@ -1,6 +1,12 @@
+export type UserRole =
+  | "RETAILER"
+  | "WHOLESALER"
+  | "ADMIN";
+
 export interface Customer {
   id: number;
   phoneNumber: string;
+  role: UserRole;
 }
 
 export interface OtpRequestResponse {

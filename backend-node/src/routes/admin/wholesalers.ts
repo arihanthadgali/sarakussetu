@@ -6,7 +6,7 @@ import {
 } from "express";
 
 import { requireAuthentication } from "../../middleware/authentication.js";
-import { requireRole } from "../../middleware/authorization.js";
+import { requireAdminAuthentication } from "../../middleware/admin-authentication.js";
 import { createOrderAssignmentService } from "../../services/admin/order-assignment-service.js";
 
 type Database = Parameters<
@@ -51,7 +51,7 @@ export function createAdminWholesalersRouter({
   router.get(
     "/",
     requireAuthentication,
-    requireRole("ADMIN"),
+    requireAdminAuthentication,
     getWholesalers,
   );
 

@@ -9,6 +9,7 @@ import {
 import { requireRole } from "../../middleware/authorization.js";
 import { requireAuthentication } from "../../middleware/authentication.js";
 
+
 type Database = PrismaClient;
 
 const serializeDecimal = (value: { toNumber(): number }): number =>
@@ -121,7 +122,7 @@ export function createWholesalerOrdersRouter({
   router.get(
     "/",
     requireAuthentication,
-    requireRole("WHOLESALER", "ADMIN"),
+    requireRole("WHOLESALER"),
     getOrders,
   );
 

@@ -1,0 +1,296 @@
+.wholesaler-page {
+  min-height: 100vh;
+  background: #f7f5f0;
+  color: #20231f;
+}
+
+.wholesaler-header {
+  min-height: 76px;
+  padding: 18px 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #dedbd3;
+  background: #fff;
+}
+
+.wholesaler-brand {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.wholesaler-subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #77776f;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wholesaler-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wholesaler-account-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #60625c;
+}
+
+.wholesaler-account-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4d9b62;
+}
+
+.wholesaler-signout,
+.wholesaler-refresh,
+.order-action {
+  border: 1px solid #252923;
+  background: #252923;
+  color: #fff;
+  border-radius: 7px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.wholesaler-signout:hover,
+.wholesaler-refresh:hover,
+.order-action:hover {
+  opacity: 0.88;
+}
+
+.wholesaler-content {
+  width: min(1180px, 88%);
+  margin: 0 auto;
+  padding: 48px 0 70px;
+}
+
+.wholesaler-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.wholesaler-kicker {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #77776f;
+}
+
+.wholesaler-heading h1 {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 54px);
+  line-height: 1;
+}
+
+.wholesaler-heading p {
+  margin: 12px 0 0;
+  color: #6b6c66;
+}
+
+.wholesaler-refresh {
+  background: #fff;
+  color: #252923;
+}
+
+.wholesaler-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.wholesaler-stat {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #dedbd3;
+  border-radius: 10px;
+}
+
+.wholesaler-stat span {
+  display: block;
+  color: #77776f;
+  font-size: 13px;
+}
+
+.wholesaler-stat strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 30px;
+}
+
+.wholesaler-orders {
+  display: grid;
+  gap: 16px;
+}
+
+.wholesaler-order-card {
+  padding: 24px;
+  border: 1px solid #dedbd3;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.order-card-top,
+.order-card-main,
+.order-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.order-card-top {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #ece9e2;
+}
+
+.order-card-top > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-number {
+  font-weight: 750;
+}
+
+.order-status {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #eee;
+}
+
+.order-date {
+  color: #77776f;
+  font-size: 13px;
+}
+
+.order-card-main {
+  padding: 20px 0;
+}
+
+.order-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #77776f;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.order-products {
+  padding: 15px 0;
+  border-top: 1px solid #ece9e2;
+  border-bottom: 1px solid #ece9e2;
+}
+
+.order-product {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 7px 0;
+  font-size: 14px;
+}
+
+.order-product span:last-child {
+  color: #77776f;
+}
+
+.order-card-footer {
+  padding-top: 18px;
+  color: #77776f;
+  font-size: 12px;
+}
+
+.order-action {
+  white-space: nowrap;
+}
+
+.wholesaler-empty {
+  padding: 60px 30px;
+  text-align: center;
+  border: 1px dashed #cfcac0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wholesaler-empty h2 {
+  margin: 0;
+}
+
+.wholesaler-empty p {
+  color: #77776f;
+}
+
+.wholesaler-error {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #d8aaa0;
+  border-radius: 8px;
+  background: #fff;
+  color: #8a3d2d;
+}
+
+@media (max-width: 760px) {
+  .wholesaler-header {
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .wholesaler-header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .wholesaler-content {
+    width: 92%;
+    padding-top: 30px;
+  }
+
+  .wholesaler-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wholesaler-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .order-card-main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .order-card-top,
+  .order-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .order-card-top > div {
+    flex-wrap: wrap;
+  }
+
+  .order-action {
+    width: 100%;
+  }
+}

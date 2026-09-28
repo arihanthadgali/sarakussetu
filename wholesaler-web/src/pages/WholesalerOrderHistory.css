@@ -1,0 +1,205 @@
+.wholesaler-history-page {
+  padding: 34px 36px 48px;
+}
+
+.history-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.history-page-header h1 {
+  margin: 0;
+  color: #182235;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.history-page-header p {
+  margin: 7px 0 0;
+  color: #7a8498;
+  font-size: 14px;
+}
+
+.history-refresh-button {
+  border: 1px solid #d8dfeb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1769e0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+}
+
+.history-refresh-button:hover {
+  background: #f4f8ff;
+}
+
+.history-refresh-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.history-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid #f1c4c4;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #a42626;
+  font-size: 13px;
+}
+
+.history-alert button {
+  border: 0;
+  background: transparent;
+  color: #1769e0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.history-card {
+  overflow: hidden;
+  border: 1px solid #e1e6ee;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.history-card-header {
+  padding: 22px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.history-card-header h2 {
+  margin: 0;
+  color: #202a3b;
+  font-size: 17px;
+}
+
+.history-card-header p {
+  margin: 5px 0 0;
+  color: #8791a3;
+  font-size: 12px;
+}
+
+.history-table-scroll {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+
+.history-table th {
+  padding: 13px 18px;
+  border-bottom: 1px solid #edf0f4;
+  background: #fafbfc;
+  color: #8a94a6;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.history-table td {
+  padding: 17px 18px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #303a4d;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.history-table tbody tr:hover {
+  background: #fbfcfe;
+}
+
+.history-order-id {
+  color: #1769e0;
+}
+
+.history-retailer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-retailer span {
+  color: #8a94a6;
+  font-size: 11px;
+}
+
+.history-status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.history-status-completed {
+  background: #e9f7ef;
+  color: #16864a;
+}
+
+.history-status-cancelled {
+  background: #fff0f0;
+  color: #bd3a3a;
+}
+
+.history-state {
+  display: flex;
+  min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  color: #8993a4;
+  font-size: 13px;
+  text-align: center;
+}
+
+.history-state strong {
+  color: #394457;
+  font-size: 15px;
+}
+
+@media (max-width: 900px) {
+  .wholesaler-history-page {
+    padding: 24px 20px 40px;
+  }
+
+  .history-page-header h1 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 600px) {
+  .wholesaler-history-page {
+    padding: 20px 14px 32px;
+  }
+
+  .history-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-refresh-button {
+    align-self: flex-start;
+  }
+}

@@ -1,0 +1,7 @@
+@import "./WholesalerLogin.css";
+
+.back-button {
+  background: #fff !important;
+  color: #252923 !important;
+  border: 1px solid #cfcac0 !important;
+}

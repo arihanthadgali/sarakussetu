@@ -14,6 +14,7 @@ import { createWholesalerOrderStatusRouter } from "./wholesaler/order-status.js"
 import { createWholesalerAuthRouter } from "./wholesaler/auth.js";
 import { createAdminOrdersRouter } from "./admin/orders.js";
 import { createAdminWholesalersRouter } from "./admin/wholesalers.js";
+import { createAdminAuthRouter } from './admin/auth.js';
 
 export const router = Router();
 
@@ -52,7 +53,10 @@ router.use(
     database: prisma,
   }),
 );
-
+router.use(
+  '/api/admin/auth',
+  createAdminAuthRouter(),
+);
 router.use(
   "/api/orders",
   createOrdersRouter({

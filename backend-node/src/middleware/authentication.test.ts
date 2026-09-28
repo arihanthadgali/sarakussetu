@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const verifyAccessTokenMock = vi.hoisted(() => vi.fn());
 const findCustomerMock = vi.hoisted(() => vi.fn());
 const findWholesalerMock = vi.hoisted(() => vi.fn());
+const findAdminMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../modules/auth/jwt/jwt-verification-service.js", () => ({
   verifyAccessToken: verifyAccessTokenMock,
@@ -15,6 +16,9 @@ vi.mock("../database/prisma.js", () => ({
     },
     wholesaler: {
       findUnique: findWholesalerMock,
+    },
+    admin: {
+      findUnique: findAdminMock,
     },
   },
 }));
@@ -92,9 +96,11 @@ describe("requireAuthentication", () => {
     });
 
     expect(findWholesalerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.locals.customerId).toBe(7n);
     expect(response.locals.wholesalerId).toBeUndefined();
+    expect(response.locals.adminId).toBeUndefined();
     expect(response.locals.role).toBe("RETAILER");
     expect(next).toHaveBeenCalledOnce();
   });
@@ -127,22 +133,23 @@ describe("requireAuthentication", () => {
     });
 
     expect(findCustomerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.locals.wholesalerId).toBe(8n);
     expect(response.locals.customerId).toBeUndefined();
+    expect(response.locals.adminId).toBeUndefined();
     expect(response.locals.role).toBe("WHOLESALER");
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("authenticates an admin using the customers table", async () => {
+  it("authenticates an admin using the admins table", async () => {
     verifyAccessTokenMock.mockResolvedValue({
       sub: "9",
-      tokenType: "RETAILER",
+      tokenType: "ADMIN",
     });
 
-    findCustomerMock.mockResolvedValue({
+    findAdminMock.mockResolvedValue({
       id: 9n,
-      role: "ADMIN",
     });
 
     const request = createRequest("Bearer admin-token");
@@ -155,20 +162,56 @@ describe("requireAuthentication", () => {
       next,
     );
 
-    expect(findCustomerMock).toHaveBeenCalledWith({
+    expect(findAdminMock).toHaveBeenCalledWith({
       where: { id: 9n },
       select: {
         id: true,
-        role: true,
       },
     });
 
+    expect(findCustomerMock).not.toHaveBeenCalled();
     expect(findWholesalerMock).not.toHaveBeenCalled();
 
-    expect(response.locals.customerId).toBe(9n);
+    expect(response.locals.adminId).toBe(9n);
+    expect(response.locals.customerId).toBeUndefined();
     expect(response.locals.wholesalerId).toBeUndefined();
     expect(response.locals.role).toBe("ADMIN");
     expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("returns 401 when the admin does not exist", async () => {
+    verifyAccessTokenMock.mockResolvedValue({
+      sub: "999",
+      tokenType: "ADMIN",
+    });
+
+    findAdminMock.mockResolvedValue(null);
+
+    const request = createRequest("Bearer unknown-admin-token");
+    const response = createResponse();
+    const next = vi.fn();
+
+    await requireAuthentication(
+      request as never,
+      response as never,
+      next,
+    );
+
+    expect(findAdminMock).toHaveBeenCalledWith({
+      where: { id: 999n },
+      select: {
+        id: true,
+      },
+    });
+
+    expect(findCustomerMock).not.toHaveBeenCalled();
+    expect(findWholesalerMock).not.toHaveBeenCalled();
+
+    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.json).toHaveBeenCalledWith({
+      error: "Unauthorized",
+    });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the retailer does not exist", async () => {
@@ -198,6 +241,7 @@ describe("requireAuthentication", () => {
     });
 
     expect(findWholesalerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.status).toHaveBeenCalledWith(401);
     expect(response.json).toHaveBeenCalledWith({
@@ -232,6 +276,7 @@ describe("requireAuthentication", () => {
     });
 
     expect(findCustomerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.status).toHaveBeenCalledWith(401);
     expect(response.json).toHaveBeenCalledWith({
@@ -293,6 +338,7 @@ describe("requireAuthentication", () => {
 
     expect(findCustomerMock).not.toHaveBeenCalled();
     expect(findWholesalerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.status).toHaveBeenCalledWith(401);
     expect(response.json).toHaveBeenCalledWith({
@@ -327,8 +373,45 @@ describe("requireAuthentication", () => {
     });
 
     expect(findCustomerMock).not.toHaveBeenCalled();
+    expect(findAdminMock).not.toHaveBeenCalled();
 
     expect(response.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it("does not allow an admin token to authenticate as a customer", async () => {
+    verifyAccessTokenMock.mockResolvedValue({
+      sub: "9",
+      tokenType: "ADMIN",
+    });
+
+    findAdminMock.mockResolvedValue({
+      id: 9n,
+    });
+
+    const request = createRequest("Bearer admin-token");
+    const response = createResponse();
+    const next = vi.fn();
+
+    await requireAuthentication(
+      request as never,
+      response as never,
+      next,
+    );
+
+    expect(findAdminMock).toHaveBeenCalledWith({
+      where: { id: 9n },
+      select: {
+        id: true,
+      },
+    });
+
+    expect(findCustomerMock).not.toHaveBeenCalled();
+    expect(findWholesalerMock).not.toHaveBeenCalled();
+
+    expect(response.locals.adminId).toBe(9n);
+    expect(response.locals.customerId).toBeUndefined();
+    expect(response.locals.role).toBe("ADMIN");
+    expect(next).toHaveBeenCalledOnce();
   });
 });

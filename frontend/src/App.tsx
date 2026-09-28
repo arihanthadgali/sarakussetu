@@ -8,6 +8,7 @@ import { Home } from "./pages/Home";
 import Orders from "./pages/Orders";
 import ProductCatalog from "./pages/ProductCatalog";
 
+
 function App() {
   const { isAuthenticated, isLoading, logout } = useAuth();
 

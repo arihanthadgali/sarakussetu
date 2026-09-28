@@ -44,9 +44,7 @@ export const requireAuthentication: RequestHandler = async (
     if (tokenType === "WHOLESALER") {
       const wholesaler = await prisma.wholesaler.findUnique({
         where: { id: accountId },
-        select: {
-          id: true,
-        },
+        select: { id: true },
       });
 
       if (wholesaler === null) {
@@ -59,16 +57,29 @@ export const requireAuthentication: RequestHandler = async (
       return next();
     }
 
+    if (tokenType === "ADMIN") {
+      const admin = await prisma.admin.findUnique({
+        where: { id: accountId },
+        select: { id: true },
+      });
+
+      if (admin === null) {
+        return unauthorized(response);
+      }
+
+      response.locals.adminId = admin.id;
+      response.locals.role = "ADMIN";
+
+      return next();
+    }
+
     if (tokenType !== "RETAILER") {
       return unauthorized(response);
     }
 
     const customer = await prisma.customer.findUnique({
       where: { id: accountId },
-      select: {
-        id: true,
-        role: true,
-      },
+      select: { id: true, role: true },
     });
 
     if (customer === null || !isUserRole(customer.role)) {

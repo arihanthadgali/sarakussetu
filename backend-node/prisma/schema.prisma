@@ -148,3 +148,30 @@ model WholesalerOtpVerification {
   @@index([wholesalerId], map: "idx_wholesaler_otp_wholesaler_id")
   @@map("wholesaler_otp_verifications")
 }
+model Admin {
+  id               BigInt                  @id @default(autoincrement()) @db.BigInt
+  phoneNumber      String                  @unique(map: "uk_admins_phone_number") @map("phone_number") @db.VarChar(20)
+  name             String                  @db.VarChar(255)
+  createdAt        DateTime                @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime                @map("updated_at") @db.Timestamp(6)
+  otpVerifications AdminOtpVerification[]
+
+  @@map("admins")
+}
+
+model AdminOtpVerification {
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  adminId      BigInt?  @map("admin_id") @db.BigInt
+  phoneNumber  String   @map("phone_number") @db.VarChar(20)
+  otpHash      String   @map("otp_hash") @db.VarChar(100)
+  expiresAt    DateTime @map("expires_at") @db.Timestamp(6)
+  verified     Boolean  @default(false)
+  attemptCount Int      @default(0) @map("attempt_count")
+  createdAt    DateTime @map("created_at") @db.Timestamp(6)
+
+  admin Admin? @relation(fields: [adminId], references: [id], map: "fk_admin_otp_admin")
+
+  @@index([phoneNumber, verified, expiresAt], map: "idx_admin_otp_phone_verified_expiry")
+  @@index([adminId], map: "idx_admin_otp_admin_id")
+  @@map("admin_otp_verifications")
+}

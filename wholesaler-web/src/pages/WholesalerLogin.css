@@ -1,0 +1,105 @@
+.wholesaler-auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f7f5f0;
+}
+
+.wholesaler-auth-card {
+  width: min(430px, 100%);
+  padding: 42px;
+  border: 1px solid #dedbd3;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.wholesaler-auth-kicker {
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.wholesaler-auth-card h1 {
+  margin: 0;
+  font-size: 36px;
+}
+
+.wholesaler-auth-card p {
+  margin: 12px 0 30px;
+  line-height: 1.6;
+  color: #6b6c66;
+}
+
+.wholesaler-auth-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.wholesaler-auth-card label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wholesaler-auth-card input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid #cfcac0;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.wholesaler-auth-card input:focus {
+  outline: 2px solid #252923;
+  outline-offset: 1px;
+}
+
+.wholesaler-auth-card button {
+  margin-top: 8px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: #252923;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wholesaler-auth-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-error {
+  padding: 10px 12px;
+  border: 1px solid #d8aaa0;
+  border-radius: 7px;
+  color: #8a3d2d;
+  background: #fff;
+  font-size: 13px;
+}
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.auth-mode-switch button {
+  border: 1px solid #d8d4cc;
+  background: transparent;
+  color: #222;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.auth-mode-switch button.active {
+  background: #222;
+  color: #fff;
+  border-color: #222;
+}

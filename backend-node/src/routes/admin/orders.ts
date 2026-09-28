@@ -6,8 +6,9 @@ import {
 } from "express";
 
 import { requireAuthentication } from "../../middleware/authentication.js";
-import { requireRole } from "../../middleware/authorization.js";
+//import { requireRole } from "../../middleware/authorization.js";
 import { createOrderAssignmentService } from "../../services/admin/order-assignment-service.js";
+import { requireAdminAuthentication } from "../../middleware/admin-authentication.js";
 
 type Database = Parameters<
   typeof createOrderAssignmentService
@@ -132,14 +133,14 @@ export function createAdminOrdersRouter({
   router.get(
     "/unassigned",
     requireAuthentication,
-    requireRole("ADMIN"),
+    requireAdminAuthentication,
     getUnassignedOrders,
   );
 
   router.patch(
     "/:orderId/wholesaler",
     requireAuthentication,
-    requireRole("ADMIN"),
+    requireAdminAuthentication,
     assignWholesaler,
   );
 

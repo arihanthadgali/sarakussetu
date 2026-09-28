@@ -39,7 +39,7 @@ const signingKey = () => {
   return createSecretKey(key);
 };
 
-export type AccessTokenType = 'RETAILER' | 'WHOLESALER';
+export type AccessTokenType = 'RETAILER' | 'WHOLESALER' | 'ADMIN';
 
 export const createAccessToken = async (
   subjectId: bigint,

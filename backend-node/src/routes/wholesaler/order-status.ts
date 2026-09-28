@@ -160,7 +160,7 @@ export function createWholesalerOrderStatusRouter({
   router.patch(
     "/:orderId/status",
     requireAuthentication,
-    requireRole("WHOLESALER", "ADMIN"),
+    requireRole("WHOLESALER"),
     updateOrderStatus,
   );
 
