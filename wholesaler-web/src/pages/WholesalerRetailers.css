@@ -1,0 +1,463 @@
+.wholesaler-retailers-page {
+  padding: 34px 36px 48px;
+}
+
+.retailers-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.retailers-page-header h1 {
+  margin: 0;
+  color: #182235;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.retailers-page-header p {
+  margin: 7px 0 0;
+  color: #7a8498;
+  font-size: 14px;
+}
+
+.retailers-refresh-button {
+  border: 1px solid #d8dfeb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1769e0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+}
+
+.retailers-refresh-button:hover {
+  background: #f4f8ff;
+}
+
+.retailers-refresh-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.retailers-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid #f1c4c4;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #a42626;
+  font-size: 13px;
+}
+
+.retailers-alert button {
+  border: 0;
+  background: transparent;
+  color: #1769e0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.retailers-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid #e2e7ef;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.retailers-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(340px, 100%);
+  padding: 0 11px;
+  border: 1px solid #d8dfeb;
+  border-radius: 8px;
+  color: #7d899c;
+}
+
+.retailers-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 10px 0;
+  color: #303a4d;
+  font: inherit;
+  font-size: 13px;
+}
+
+.retailer-filter-group {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.retailer-filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #68748a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+}
+
+.retailer-filter:hover {
+  background: #f5f8fc;
+}
+
+.retailer-filter.active {
+  background: #1769e0;
+  color: #ffffff;
+}
+
+.retailer-filter span {
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #59667a;
+  font-size: 11px;
+  text-align: center;
+}
+
+.retailer-filter.active span {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.retailers-card {
+  overflow: hidden;
+  border: 1px solid #e1e6ee;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.retailers-card-header {
+  padding: 22px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.retailers-card-header h2 {
+  margin: 0;
+  color: #202a3b;
+  font-size: 17px;
+}
+
+.retailers-card-header p {
+  margin: 5px 0 0;
+  color: #8791a3;
+  font-size: 12px;
+}
+
+.retailers-table-scroll,
+.retailer-order-activity-scroll {
+  overflow-x: auto;
+}
+
+.retailers-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+
+.retailers-table th,
+.retailer-order-activity th {
+  padding: 13px 18px;
+  border-bottom: 1px solid #edf0f4;
+  background: #fafbfc;
+  color: #8a94a6;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.retailers-table td,
+.retailer-order-activity td {
+  padding: 17px 18px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #303a4d;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.retailers-table tbody tr:last-child td,
+.retailer-order-activity tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.retailers-table tbody tr:hover,
+.retailer-order-activity tbody tr:hover {
+  background: #fbfcfe;
+}
+
+.retailer-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.retailer-contact span {
+  color: #8a94a6;
+  font-size: 11px;
+}
+
+.retailer-details-button {
+  border: 0;
+  background: transparent;
+  color: #627087;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 0;
+}
+
+.retailer-details-button:hover {
+  color: #1769e0;
+}
+
+.retailers-state {
+  display: flex;
+  min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  color: #8993a4;
+  font-size: 13px;
+  text-align: center;
+}
+
+.retailers-state strong {
+  color: #394457;
+  font-size: 15px;
+}
+
+.retailer-details-backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 32, 51, 0.42);
+}
+
+.retailer-details-dialog {
+  width: min(780px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 22px 60px rgba(20, 32, 51, 0.25);
+}
+
+.retailer-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.retailer-details-header p,
+.retailer-details-header h2 {
+  margin: 0;
+}
+
+.retailer-details-header p {
+  color: #8791a3;
+  font-size: 12px;
+}
+
+.retailer-details-header h2 {
+  margin-top: 3px;
+  color: #202a3b;
+  font-size: 20px;
+}
+
+.retailer-details-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #f3f6fa;
+  color: #5b677b;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.retailer-details-close:hover {
+  background: #e9eef5;
+}
+
+.retailer-details-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.retailer-details-summary span,
+.retailer-details-summary strong {
+  display: block;
+}
+
+.retailer-details-summary span {
+  color: #8993a4;
+  font-size: 11px;
+}
+
+.retailer-details-summary strong {
+  margin-top: 5px;
+  color: #303a4d;
+  font-size: 12px;
+}
+
+.retailer-order-activity {
+  padding: 20px 24px 24px;
+}
+
+.retailer-order-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.retailer-order-activity-header h3 {
+  margin: 0;
+  color: #303a4d;
+  font-size: 14px;
+}
+
+.retailer-order-activity-header strong {
+  color: #202a3b;
+  font-size: 14px;
+}
+
+.retailer-order-activity table {
+  width: 100%;
+  min-width: 620px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.retailer-order-activity th,
+.retailer-order-activity td {
+  padding: 11px 12px;
+  font-size: 12px;
+}
+
+.retailer-order-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.retailer-order-status-pending {
+  background: #eaf2ff;
+  color: #1769e0;
+}
+
+.retailer-order-status-confirmed,
+.retailer-order-status-completed {
+  background: #e9f7ef;
+  color: #16864a;
+}
+
+.retailer-order-status-processing {
+  background: #fff3df;
+  color: #c87900;
+}
+
+.retailer-order-status-ready {
+  background: #f0eaff;
+  color: #7149c6;
+}
+
+.retailer-order-status-cancelled {
+  background: #fff0f0;
+  color: #bd3a3a;
+}
+
+@media (max-width: 900px) {
+  .wholesaler-retailers-page {
+    padding: 24px 20px 40px;
+  }
+
+  .retailers-page-header h1 {
+    font-size: 26px;
+  }
+
+  .retailers-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .retailers-search {
+    width: 100%;
+  }
+
+  .retailer-details-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .wholesaler-retailers-page {
+    padding: 20px 14px 32px;
+  }
+
+  .retailers-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .retailers-refresh-button {
+    align-self: flex-start;
+  }
+
+  .retailer-details-backdrop {
+    padding: 12px;
+  }
+
+  .retailer-details-summary {
+    grid-template-columns: 1fr;
+  }
+}

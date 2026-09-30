@@ -18,8 +18,10 @@ import {
 } from "../cart/guestCart";
 import { createOrder } from "../order/orderApi";
 import type { OrderDetails } from "../order/types";
+import { completeDevelopmentPayment } from "../payment/paymentApi";
 import { OtpVerification } from "./OtpVerification";
 import "./Cart.css";
+
 
 export default function Cart() {
   const { isAuthenticated } = useAuth();
@@ -32,6 +34,7 @@ export default function Cart() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [orderCreated, setOrderCreated] = useState<OrderDetails | null>(null);
+  const [pendingPaymentOrder, setPendingPaymentOrder] = useState<OrderDetails | null>(null);
 
   const [checkoutStep, setCheckoutStep] = useState<
     "idle" | "phone" | "otp"
@@ -124,12 +127,8 @@ export default function Cart() {
       await mergeGuestCart();
 
       const order = await createOrder();
-
-      setOrderCreated(order);
+      setPendingPaymentOrder(order);
       setCheckoutStep("idle");
-
-      const refreshedCart = await getCart();
-      setCart(refreshedCart);
     } catch {
       setCheckoutError(
         "Your number was verified, but we couldn't place the order. Please try again.",
@@ -152,11 +151,7 @@ export default function Cart() {
 
     try {
       const order = await createOrder();
-
-      setOrderCreated(order);
-
-      const refreshedCart = await getCart();
-      setCart(refreshedCart);
+      setPendingPaymentOrder(order);
     } catch {
       setCheckoutError(
         "Unable to place your order. Please check your cart and try again.",
@@ -164,6 +159,19 @@ export default function Cart() {
     } finally {
       setIsCheckingOut(false);
     }
+  }
+
+  async function completePayment() {
+    if (pendingPaymentOrder === null) return;
+    setIsCheckingOut(true); setCheckoutError("");
+    try {
+      await completeDevelopmentPayment(pendingPaymentOrder.id);
+      setOrderCreated({ ...pendingPaymentOrder, status: "CONFIRMED" });
+      setPendingPaymentOrder(null);
+      setCart(await getCart());
+    } catch (reason) {
+      setCheckoutError(reason instanceof Error ? reason.message : "Unable to process payment. Please try again.");
+    } finally { setIsCheckingOut(false); }
   }
 
   async function handleQuantityChange(
@@ -432,6 +440,18 @@ export default function Cart() {
           />
         </div>
       </section>
+    );
+  }
+
+  if (pendingPaymentOrder !== null) {
+    return (
+      <section className="cart-page"><div className="cart-container"><div className="checkout-success">
+        <span className="cart-kicker">PAYMENT</span><h1>Complete your payment</h1>
+        <p>Your order is awaiting payment and will be confirmed only after Pay Now succeeds.</p>
+        <div className="checkout-success-summary"><div><small>ORDER TOTAL</small><strong>₹{pendingPaymentOrder.subtotal.toFixed(2)}</strong></div><div><small>STATUS</small><strong>PENDING PAYMENT</strong></div></div>
+        {checkoutError && <p className="checkout-error">{checkoutError}</p>}
+        <button type="button" className="checkout-success-button" onClick={() => void completePayment()} disabled={isCheckingOut}>{isCheckingOut ? "Processing payment…" : "Pay Now"}</button>
+      </div></div></section>
     );
   }
 

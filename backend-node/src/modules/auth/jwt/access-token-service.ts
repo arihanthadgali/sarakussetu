@@ -31,12 +31,36 @@ const signingKey = () => {
   return createSecretKey(key);
 };
 
-export const createAccessToken = async (customerId: bigint): Promise<string> => {
+export type AccessTokenType = 'RETAILER' | 'WHOLESALER' | 'ADMIN';
+
+export const createAccessToken = async (
+  subjectId: bigint,
+  tokenType: AccessTokenType = 'RETAILER',
+): Promise<string> => {
   const now = Math.floor(Date.now() / 1000);
-  return new SignJWT()
+  return new SignJWT({ tokenType })
     .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(customerId.toString())
+    .setSubject(subjectId.toString())
     .setIssuedAt(now)
     .setExpirationTime(now + parseAccessTokenTtl(env.JWT_ACCESS_TOKEN_TTL))
+    .sign(signingKey());
+};
+
+export const createAdminAccessToken = (adminId: bigint): Promise<string> =>
+  createAccessToken(adminId, 'ADMIN');
+
+export const createWholesalerSignupToken = async (
+  phoneNumber: string,
+): Promise<string> => {
+  const now = Math.floor(Date.now() / 1000);
+
+  return new SignJWT({
+    tokenType: 'WHOLESALER_SIGNUP',
+    phoneNumber,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject('wholesaler-signup')
+    .setIssuedAt(now)
+    .setExpirationTime(now + 10 * 60)
     .sign(signingKey());
 };
