@@ -5,10 +5,14 @@ import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { router } from './routes/index.js';
+import path from "node:path";
 
 export const createApp = () => {
   const app = express();
-
+  app.use(
+  "/uploads",
+  express.static(path.resolve(process.cwd(), "uploads")),
+);
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigins.length === 0 ? false : env.corsOrigins }));

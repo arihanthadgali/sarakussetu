@@ -21,18 +21,38 @@ export const requireAuthentication: RequestHandler = async (request, response, n
 
     const token = match[1];
 
-if (token === undefined) {
-  return unauthorized(response);
-}
+    if (token === undefined) {
+      return unauthorized(response);
+    }
 
-const payload = await verifyAccessToken(token);
+    const payload = await verifyAccessToken(token);
     const subject = payload.sub;
 
     if (subject === undefined || !/^\d+$/.test(subject)) {
       return unauthorized(response);
     }
 
-    response.locals.customerId = BigInt(subject);
+    const accountId = BigInt(subject);
+    const tokenType = payload.tokenType;
+
+    if (tokenType === 'WHOLESALER') {
+      response.locals.wholesalerId = accountId;
+      response.locals.role = 'WHOLESALER';
+      return next();
+    }
+
+    if (tokenType === 'ADMIN') {
+      response.locals.adminId = accountId;
+      response.locals.role = 'ADMIN';
+      return next();
+    }
+
+    if (tokenType !== undefined && tokenType !== 'RETAILER') {
+      return unauthorized(response);
+    }
+
+    response.locals.customerId = accountId;
+    response.locals.role = 'RETAILER';
 
     return next();
   } catch {

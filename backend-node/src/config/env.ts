@@ -9,6 +9,9 @@ const environmentSchema = z.object({
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().optional(),
   JWT_ACCESS_TOKEN_TTL: z.string().default('PT1H'),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

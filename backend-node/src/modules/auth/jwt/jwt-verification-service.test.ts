@@ -16,7 +16,9 @@ describe('verifyAccessToken', () => {
 
   it('rejects a tampered token', async () => {
     const token = await createAccessToken(3n);
-    const tamperedToken = `${token.slice(0, -1)}x`;
+    const [header, payload, signature] = token.split('.') as [string, string, string];
+    const tamperedPayload = `${payload.slice(0, -1)}${payload.endsWith('a') ? 'b' : 'a'}`;
+    const tamperedToken = `${header}.${tamperedPayload}.${signature}`;
 
     await expect(verifyAccessToken(tamperedToken)).rejects.toThrow();
   });
