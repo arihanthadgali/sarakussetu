@@ -9,6 +9,7 @@ import { createProductRouter } from "./products.js";
 
 import { prisma } from "../database/prisma.js";
 import { requireAuthentication } from "../middleware/authentication.js";
+import { createAdminProductsRouter } from "./admin/products.js";
 
 export const router = Router();
 
@@ -17,7 +18,12 @@ router.use("/api/auth/otp", createOtpRouter());
 router.use("/api/auth", createAuthenticatedCustomerRouter());
 router.use("/api/cart", createCartRouter());
 router.use("/api/products", createProductRouter());
-
+router.use(
+  "/api/admin/products",
+  createAdminProductsRouter({
+    database: prisma,
+  }),
+);
 router.use(
   "/api/orders",
   createOrdersRouter({
