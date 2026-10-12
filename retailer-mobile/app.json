@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "SarakuSetu",
+    "slug": "sarakusetu-retailer",
+    "scheme": "sarakusetu",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F2E7",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sarakusetu.retailer"
+    },
+    "android": {
+      "package": "com.sarakusetu.retailer",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B4A2E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#F7F2E7"
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
