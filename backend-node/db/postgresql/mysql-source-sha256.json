@@ -1,0 +1,17 @@
+{
+  "V3__create_products.sql": "9ecd35b8041e78fc33f802abf7a5762fa1cbfdd81e564f8bdcbd76db31edc07b",
+  "V4__seed_products.sql": "96bde42b6b530bb5300c47f8279030caa8f0dc9c87a42657c5b5e901344db012",
+  "V7__add_customer_role.sql": "c6d1527e706efc475d68a652be551480ba16b319b53df1d3b4749100df304dd3",
+  "V14__create_notifications.sql": "4a5012d5ed5215e2329ab77f14d7d5ff449c57c8c7d357782ee9828df01d1b10",
+  "V15__create_payments.sql": "ab544b9b77c6f943b249a38587bda3fe2d307aff8c8df9294ce03ce1fd757af8",
+  "V1__create_customers.sql": "f4ada9efe0cb4968d92dd1886725199756ec6ba8c7890f1f04d4a493debbb560",
+  "V10__add_wholesaler_to_orders.sql": "c5c3b385fae01b8ab2ecb01289a71a1c26803c5720414ae5e64ff002f26ffd19",
+  "V9__create_wholesaler_otp_verifications.sql": "c1a558a1a876775e91bcaa89a4b28e646ba1577a0d0f7127558d98431c7df62f",
+  "V13__add_manual_delivery_to_orders.sql": "d972e06ea03fd8929f0410cfe4e6ef7cc19f7b7be70cc3b4a9ae46856e9f4292",
+  "V8__create_wholesalers.sql": "5a48330c5e854f115277b01c2d48b7ef1b4db38aece2af9fd568def449ddbd4d",
+  "V2__create_otp_verifications.sql": "f940d8ae3505e2d12311302c7f597cac8162b151fd63580a33276ccf1c347a69",
+  "V5__create_carts.sql": "3ee0419092f51224eb3bfe708733641ba69e0ee554ed76ee76949cc5221dc9ac",
+  "V12__create_wholesaler_inventory.sql": "2a2c74b9cfac53797614d341a28e1ca8e4f1f877e13228ff39f8c9e08a0c726b",
+  "V11__create_admin_auth.sql": "e4f7224222398d730b30d09fd7d24f4bdb1e5220ae6311b1c6264fc133d66853",
+  "V6__create_orders.sql": "5ae4f41fdfef85a99afe49ebde4c47a70901983f85dc19e4c1ab5f35983699be"
+}

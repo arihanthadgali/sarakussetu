@@ -20,15 +20,27 @@ Copy `.env.example` to `.env` to override local runtime settings. Never commit t
 
 ## Database
 
-Prisma maps the existing MySQL schema that is owned by Flyway in `../backend/src/main/resources/db/migration`. Set `DATABASE_URL` in your uncommitted `.env` using the placeholder format in `.env.example`; URL-encode reserved credential characters.
+Prisma now maps the PostgreSQL translation of the Flyway-managed schema.
+The original MySQL V1–V15 migrations remain unchanged in
+`../backend/src/main/resources/db/migration`; the PostgreSQL versions live in
+`db/postgresql/migration`. Flyway remains the only migration owner.
 
-The schema is at `prisma/schema.prisma`. Generate the Prisma client after installing dependencies or changing that mapping:
+See [PostgreSQL setup and migration notes](db/postgresql/README.md) for local database
+creation, Flyway commands, compatibility differences, test limitations and the
+preserved `prisma/schema.mysql.prisma` mapping. This prepares a fresh PostgreSQL
+schema; it does not copy existing MySQL data or deploy/cut over production.
+
+Set a PostgreSQL `DATABASE_URL` using `.env.example` (the existing `.env` is not
+modified automatically). Generate the matching client before building:
 
 ```bash
-npm exec prisma generate
+npx prisma validate --schema prisma/schema.prisma
+npx prisma generate --schema prisma/schema.prisma
 ```
 
-Do **not** run `prisma migrate`, `prisma db push`, `prisma db seed`, or `prisma migrate reset`. Those commands would conflict with Flyway's ownership of the schema and may alter data. The reusable client is exported by `src/database/prisma.ts`; `isDatabaseAvailable` in `src/database/health.ts` performs a minimal `SELECT 1` check for a future health endpoint.
+Do **not** run `prisma migrate`, `prisma db push`, `prisma db seed`, or reset commands.
+`src/database/prisma.ts` and the `SELECT 1` health probe are provider-independent
+and need no code changes. No migrations run on Node startup.
 
 ## OTP authentication and JWT signing
 
