@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: sarakusetu-postgres
+    environment:
+      POSTGRES_DB: sarakusetu
+      POSTGRES_USER: sarakusetu_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sarakusetu_app -d sarakusetu"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sarakusetu
+
+  flyway:
+    image: flyway/flyway:latest
+    container_name: sarakusetu-flyway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend-node/db/postgresql/migration:/flyway/sql:ro
+      - ./backend-node/db/postgresql/flyway.conf:/flyway/conf/flyway.conf:ro
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/sarakusetu
+      FLYWAY_USER: sarakusetu_app
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    command: migrate
+    networks:
+      - sarakusetu
+
+  backend:
+    build:
+      context: ./backend-node
+    image: sarakusetu-backend:local
+    container_name: sarakusetu-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      DATABASE_URL: postgresql://sarakusetu_app:${POSTGRES_PASSWORD}@postgres:5432/sarakusetu?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT1H}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - sarakusetu
+
+volumes:
+  postgres_data:
+
+networks:
+  sarakusetu:
+    driver: bridge
